@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="800" viewBox="0 0 1200 800" role="img" aria-label="Parking space placeholder">
+  <rect width="1200" height="800" fill="#eef5f1"/>
+  <rect x="150" y="170" width="900" height="460" rx="8" fill="#ffffff" stroke="#d2ddd7" stroke-width="6"/>
+  <path d="M225 560H975" stroke="#c0d0c8" stroke-width="10" stroke-linecap="round" stroke-dasharray="50 38"/>
+  <path d="M270 465H930" stroke="#28a58b" stroke-width="14" stroke-linecap="round"/>
+  <path d="M395 465L475 260H625C721 260 782 312 782 392C782 474 721 526 625 526H538V620H395V465ZM538 405H618C646 405 663 391 663 369C663 347 646 334 618 334H538V405Z" fill="#11312c"/>
+  <circle cx="345" cy="620" r="38" fill="#ff6b4a"/>
+  <circle cx="855" cy="620" r="38" fill="#ff6b4a"/>
+</svg>

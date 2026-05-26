@@ -1,0 +1,105 @@
+{
+  "users": [
+    {
+      "id": "00000000-0000-4000-8000-000000000001",
+      "fullName": "Vishv Parking Owner",
+      "email": "owner@park2bnb.local",
+      "contactNumber": "9876543210",
+      "passwordHash": "scrypt:ownerseed2026abcd:73d9d89026210a2b47c3aa8c1b40fb1f701ce99ed1f5fe74c42fa74bc445c65a287da4ff8b9a003cdafaa84c4c9804c0364f81ea294d8bed40405fc651c0597e",
+      "userType": "OWNER",
+      "isBlocked": false,
+      "createdAt": "2026-05-23T00:00:00.000Z",
+      "updatedAt": "2026-05-23T00:00:00.000Z"
+    },
+    {
+      "id": "00000000-0000-4000-8000-000000000002",
+      "fullName": "Aarav Parking Seeker",
+      "email": "seeker@park2bnb.local",
+      "contactNumber": "9876501234",
+      "passwordHash": "scrypt:seekerseed2026abc:ffa7b7fa957c6699bff36b04e255e61049232d5704cf5925c0d0b7c8db49fd5d998f55605d0cb34ed1918b19452a9b8588c09004f30ae3d1123ce4ea257932a9",
+      "userType": "SEEKER",
+      "isBlocked": false,
+      "createdAt": "2026-05-23T00:00:00.000Z",
+      "updatedAt": "2026-05-23T00:00:00.000Z"
+    }
+  ],
+  "parkingListings": [
+    {
+      "id": "11111111-1111-4111-8111-111111111111",
+      "ownerId": "00000000-0000-4000-8000-000000000001",
+      "ownerFullName": "Vishv Parking Owner",
+      "ownerContactNumber": "9876543210",
+      "buildingAddress": "Tower A, Indiranagar, Bengaluru, Karnataka",
+      "parkingAddressDetails": "Gate 2, covered 4 wheeler slot near lift lobby",
+      "parkingFloor": "Basement B1, slot 27",
+      "parkingDirections": "Enter from Gate 2, take the first left, go to basement B1, slot number 27 is next to the lift lobby.",
+      "imageUrl": "/parking-placeholder.svg",
+      "latitude": 12.978369,
+      "longitude": 77.640835,
+      "priceOneHour": 40,
+      "priceTwentyFourHours": 550,
+      "customDurationLabel": "Weekend day",
+      "customDurationPrice": 700,
+      "availabilityStatus": "VACANT",
+      "listingStatus": "LIVE",
+      "createdAt": "2026-05-23T00:00:00.000Z",
+      "updatedAt": "2026-05-23T00:00:00.000Z"
+    },
+    {
+      "id": "11111111-1111-4111-8111-222222222222",
+      "ownerId": "00000000-0000-4000-8000-000000000001",
+      "ownerFullName": "Vishv Parking Owner",
+      "ownerContactNumber": "9876543210",
+      "buildingAddress": "Green Residency, Koramangala, Bengaluru, Karnataka",
+      "parkingAddressDetails": "Open area, Gate 1, slot beside security cabin",
+      "parkingFloor": "Ground floor, slot 8",
+      "parkingDirections": "Enter through Gate 1 and park beside the security cabin in marked slot 8.",
+      "imageUrl": "/parking-placeholder.svg",
+      "latitude": 12.935192,
+      "longitude": 77.624481,
+      "priceOneHour": 60,
+      "priceTwentyFourHours": 700,
+      "customDurationLabel": "Night stay",
+      "customDurationPrice": 450,
+      "availabilityStatus": "OCCUPIED",
+      "listingStatus": "LIVE",
+      "createdAt": "2026-05-23T00:00:00.000Z",
+      "updatedAt": "2026-05-23T00:00:00.000Z"
+    }
+  ],
+  "seekerProfiles": [
+    {
+      "id": "22222222-2222-4222-8222-222222222222",
+      "userId": "00000000-0000-4000-8000-000000000002",
+      "name": "Aarav Parking Seeker",
+      "contactNumber": "9876501234",
+      "carModel": "Hyundai i20",
+      "carNumber": "KA 01 AB 1234",
+      "currentLatitude": 12.971599,
+      "currentLongitude": 77.594566,
+      "createdAt": "2026-05-23T00:00:00.000Z",
+      "updatedAt": "2026-05-23T00:00:00.000Z"
+    }
+  ],
+  "bookings": [
+    {
+      "id": "33333333-3333-4333-8333-333333333333",
+      "seekerId": "22222222-2222-4222-8222-222222222222",
+      "ownerId": "00000000-0000-4000-8000-000000000001",
+      "parkingListingId": "11111111-1111-4111-8111-222222222222",
+      "seekerName": "Aarav Parking Seeker",
+      "seekerContact": "9876501234",
+      "carModel": "Hyundai i20",
+      "carNumber": "KA 01 AB 1234",
+      "selectedDuration": "Night stay",
+      "selectedPrice": 450,
+      "paymentStatus": "PAID",
+      "bookingStatus": "ACTIVE",
+      "exactLocationUnlocked": true,
+      "razorpayOrderId": "mock_seed_order",
+      "razorpayPaymentId": "mock_seed_payment",
+      "createdAt": "2026-05-23T00:00:00.000Z",
+      "updatedAt": "2026-05-23T00:00:00.000Z"
+    }
+  ]
+}

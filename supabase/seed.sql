@@ -1,0 +1,205 @@
+insert into public.users (
+  id,
+  full_name,
+  email,
+  contact_number,
+  password_hash,
+  user_type,
+  is_blocked,
+  created_at,
+  updated_at
+)
+values
+(
+  '00000000-0000-4000-8000-000000000001',
+  'Vishv Parking Owner',
+  'owner@park2bnb.local',
+  '9876543210',
+  'scrypt:ownerseed2026abcd:73d9d89026210a2b47c3aa8c1b40fb1f701ce99ed1f5fe74c42fa74bc445c65a287da4ff8b9a003cdafaa84c4c9804c0364f81ea294d8bed40405fc651c0597e',
+  'OWNER',
+  false,
+  now(),
+  now()
+),
+(
+  '00000000-0000-4000-8000-000000000002',
+  'Aarav Parking Seeker',
+  'seeker@park2bnb.local',
+  '9876501234',
+  'scrypt:seekerseed2026abc:ffa7b7fa957c6699bff36b04e255e61049232d5704cf5925c0d0b7c8db49fd5d998f55605d0cb34ed1918b19452a9b8588c09004f30ae3d1123ce4ea257932a9',
+  'SEEKER',
+  false,
+  now(),
+  now()
+)
+on conflict (id) do update set
+  full_name = excluded.full_name,
+  email = excluded.email,
+  contact_number = excluded.contact_number,
+  password_hash = excluded.password_hash,
+  user_type = excluded.user_type,
+  is_blocked = excluded.is_blocked,
+  updated_at = now();
+
+insert into public.parking_listings (
+  id,
+  owner_id,
+  owner_full_name,
+  owner_contact_number,
+  building_address,
+  parking_address_details,
+  parking_floor,
+  parking_directions,
+  image_url,
+  latitude,
+  longitude,
+  price_one_hour,
+  price_twenty_four_hours,
+  custom_duration_label,
+  custom_duration_price,
+  availability_status,
+  listing_status,
+  created_at,
+  updated_at
+)
+values
+(
+  '11111111-1111-4111-8111-111111111111',
+  '00000000-0000-4000-8000-000000000001',
+  'Vishv Parking Owner',
+  '9876543210',
+  'Tower A, Indiranagar, Bengaluru, Karnataka',
+  'Gate 2, covered 4 wheeler slot near lift lobby',
+  'Basement B1, slot 27',
+  'Enter from Gate 2, take the first left, go to basement B1, slot number 27 is next to the lift lobby.',
+  '/parking-placeholder.svg',
+  12.978369,
+  77.640835,
+  40,
+  550,
+  'Weekend day',
+  700,
+  'VACANT',
+  'LIVE',
+  now(),
+  now()
+),
+(
+  '11111111-1111-4111-8111-222222222222',
+  '00000000-0000-4000-8000-000000000001',
+  'Vishv Parking Owner',
+  '9876543210',
+  'Green Residency, Koramangala, Bengaluru, Karnataka',
+  'Open area, Gate 1, slot beside security cabin',
+  'Ground floor, slot 8',
+  'Enter through Gate 1 and park beside the security cabin in marked slot 8.',
+  '/parking-placeholder.svg',
+  12.935192,
+  77.624481,
+  60,
+  700,
+  'Night stay',
+  450,
+  'OCCUPIED',
+  'LIVE',
+  now(),
+  now()
+)
+on conflict (id) do update set
+  owner_full_name = excluded.owner_full_name,
+  owner_contact_number = excluded.owner_contact_number,
+  building_address = excluded.building_address,
+  parking_address_details = excluded.parking_address_details,
+  parking_floor = excluded.parking_floor,
+  parking_directions = excluded.parking_directions,
+  image_url = excluded.image_url,
+  latitude = excluded.latitude,
+  longitude = excluded.longitude,
+  price_one_hour = excluded.price_one_hour,
+  price_twenty_four_hours = excluded.price_twenty_four_hours,
+  custom_duration_label = excluded.custom_duration_label,
+  custom_duration_price = excluded.custom_duration_price,
+  availability_status = excluded.availability_status,
+  listing_status = excluded.listing_status,
+  updated_at = now();
+
+insert into public.seeker_profiles (
+  id,
+  user_id,
+  name,
+  contact_number,
+  car_model,
+  car_number,
+  current_latitude,
+  current_longitude,
+  created_at,
+  updated_at
+)
+values (
+  '22222222-2222-4222-8222-222222222222',
+  '00000000-0000-4000-8000-000000000002',
+  'Aarav Parking Seeker',
+  '9876501234',
+  'Hyundai i20',
+  'KA 01 AB 1234',
+  12.971599,
+  77.594566,
+  now(),
+  now()
+)
+on conflict (id) do update set
+  name = excluded.name,
+  contact_number = excluded.contact_number,
+  car_model = excluded.car_model,
+  car_number = excluded.car_number,
+  current_latitude = excluded.current_latitude,
+  current_longitude = excluded.current_longitude,
+  updated_at = now();
+
+insert into public.bookings (
+  id,
+  seeker_id,
+  owner_id,
+  parking_listing_id,
+  seeker_name,
+  seeker_contact,
+  car_model,
+  car_number,
+  selected_duration,
+  selected_price,
+  payment_status,
+  booking_status,
+  exact_location_unlocked,
+  razorpay_order_id,
+  razorpay_payment_id,
+  created_at,
+  updated_at
+)
+values (
+  '33333333-3333-4333-8333-333333333333',
+  '22222222-2222-4222-8222-222222222222',
+  '00000000-0000-4000-8000-000000000001',
+  '11111111-1111-4111-8111-222222222222',
+  'Aarav Parking Seeker',
+  '9876501234',
+  'Hyundai i20',
+  'KA 01 AB 1234',
+  'Night stay',
+  450,
+  'PAID',
+  'ACTIVE',
+  true,
+  'mock_seed_order',
+  'mock_seed_payment',
+  now(),
+  now()
+)
+on conflict (id) do update set
+  selected_duration = excluded.selected_duration,
+  selected_price = excluded.selected_price,
+  payment_status = excluded.payment_status,
+  booking_status = excluded.booking_status,
+  exact_location_unlocked = excluded.exact_location_unlocked,
+  razorpay_order_id = excluded.razorpay_order_id,
+  razorpay_payment_id = excluded.razorpay_payment_id,
+  updated_at = now();

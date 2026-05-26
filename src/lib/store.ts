@@ -1,0 +1,581 @@
+import { promises as fs } from "fs";
+import path from "path";
+import type {
+  Booking,
+  LocalDatabase,
+  ParkingListing,
+  SeekerProfile,
+  User,
+} from "./types";
+import { nowIso } from "./format";
+
+type ColumnMap<T extends object> = Record<keyof T & string, string>;
+
+const initialDatabase: LocalDatabase = {
+  users: [],
+  parkingListings: [],
+  seekerProfiles: [],
+  bookings: [],
+};
+
+const localDatabasePath = path.join(process.cwd(), ".data", "park2bnb.json");
+
+const userMap: ColumnMap<User> = {
+  id: "id",
+  fullName: "full_name",
+  email: "email",
+  contactNumber: "contact_number",
+  passwordHash: "password_hash",
+  userType: "user_type",
+  isBlocked: "is_blocked",
+  createdAt: "created_at",
+  updatedAt: "updated_at",
+};
+
+const listingMap: ColumnMap<ParkingListing> = {
+  id: "id",
+  ownerId: "owner_id",
+  ownerFullName: "owner_full_name",
+  ownerContactNumber: "owner_contact_number",
+  buildingAddress: "building_address",
+  parkingAddressDetails: "parking_address_details",
+  parkingFloor: "parking_floor",
+  parkingDirections: "parking_directions",
+  imageUrl: "image_url",
+  latitude: "latitude",
+  longitude: "longitude",
+  priceOneHour: "price_one_hour",
+  priceTwentyFourHours: "price_twenty_four_hours",
+  customDurationLabel: "custom_duration_label",
+  customDurationPrice: "custom_duration_price",
+  availabilityStatus: "availability_status",
+  listingStatus: "listing_status",
+  createdAt: "created_at",
+  updatedAt: "updated_at",
+};
+
+const profileMap: ColumnMap<SeekerProfile> = {
+  id: "id",
+  userId: "user_id",
+  name: "name",
+  contactNumber: "contact_number",
+  carModel: "car_model",
+  carNumber: "car_number",
+  currentLatitude: "current_latitude",
+  currentLongitude: "current_longitude",
+  createdAt: "created_at",
+  updatedAt: "updated_at",
+};
+
+const bookingMap: ColumnMap<Booking> = {
+  id: "id",
+  seekerId: "seeker_id",
+  ownerId: "owner_id",
+  parkingListingId: "parking_listing_id",
+  seekerName: "seeker_name",
+  seekerContact: "seeker_contact",
+  carModel: "car_model",
+  carNumber: "car_number",
+  selectedDuration: "selected_duration",
+  selectedPrice: "selected_price",
+  paymentStatus: "payment_status",
+  bookingStatus: "booking_status",
+  exactLocationUnlocked: "exact_location_unlocked",
+  razorpayOrderId: "razorpay_order_id",
+  razorpayPaymentId: "razorpay_payment_id",
+  createdAt: "created_at",
+  updatedAt: "updated_at",
+};
+
+function hasSupabase() {
+  const url = process.env.SUPABASE_URL || "";
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY || "";
+  return Boolean(
+    url &&
+      key &&
+      !url.includes("your-project") &&
+      !key.includes("your-service-role-key"),
+  );
+}
+
+function serviceHeaders(extraHeaders?: HeadersInit) {
+  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY ?? "";
+  const headers = new Headers(extraHeaders);
+
+  headers.set("apikey", serviceKey);
+  headers.set("Authorization", `Bearer ${serviceKey}`);
+
+  if (!headers.has("Content-Type")) {
+    headers.set("Content-Type", "application/json");
+  }
+
+  return headers;
+}
+
+async function supabaseFetch<T>(pathName: string, init?: RequestInit) {
+  const baseUrl = process.env.SUPABASE_URL;
+
+  if (!baseUrl) {
+    throw new Error("SUPABASE_URL is not configured");
+  }
+
+  const response = await fetch(`${baseUrl}/rest/v1/${pathName}`, {
+    ...init,
+    headers: serviceHeaders(init?.headers),
+    cache: "no-store",
+  });
+
+  if (!response.ok) {
+    throw new Error(await response.text());
+  }
+
+  if (response.status === 204) {
+    return undefined as T;
+  }
+
+  return (await response.json()) as T;
+}
+
+function toDbRow<T extends object>(
+  record: Partial<T>,
+  map: ColumnMap<T>,
+) {
+  const row: Record<string, unknown> = {};
+  const source = record as Record<string, unknown>;
+
+  for (const [appKey, columnName] of Object.entries(map)) {
+    if (source[appKey] !== undefined) {
+      row[columnName] = source[appKey];
+    }
+  }
+
+  return row;
+}
+
+function fromDbRow<T extends object>(
+  row: Record<string, unknown>,
+  map: ColumnMap<T>,
+) {
+  const record: Record<string, unknown> = {};
+
+  for (const [appKey, columnName] of Object.entries(map)) {
+    record[appKey] = row[columnName];
+  }
+
+  return record as T;
+}
+
+function eq(value: string) {
+  return encodeURIComponent(value);
+}
+
+async function readLocalDatabase() {
+  await fs.mkdir(path.dirname(localDatabasePath), { recursive: true });
+
+  try {
+    const raw = await fs.readFile(localDatabasePath, "utf8");
+    return JSON.parse(raw) as LocalDatabase;
+  } catch (error) {
+    const code = (error as NodeJS.ErrnoException).code;
+
+    if (code !== "ENOENT") {
+      throw error;
+    }
+
+    await writeLocalDatabase(initialDatabase);
+    return structuredClone(initialDatabase);
+  }
+}
+
+async function writeLocalDatabase(database: LocalDatabase) {
+  await fs.mkdir(path.dirname(localDatabasePath), { recursive: true });
+  await fs.writeFile(localDatabasePath, JSON.stringify(database, null, 2));
+}
+
+export const db = {
+  users: {
+    async list() {
+      if (hasSupabase()) {
+        const rows = await supabaseFetch<Record<string, unknown>[]>("users?select=*&order=created_at.desc");
+        return rows.map((row) => fromDbRow<User>(row, userMap));
+      }
+
+      const database = await readLocalDatabase();
+      return database.users.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+    },
+
+    async findById(id: string) {
+      if (hasSupabase()) {
+        const rows = await supabaseFetch<Record<string, unknown>[]>(
+          `users?id=eq.${eq(id)}&select=*&limit=1`,
+        );
+        return rows[0] ? fromDbRow<User>(rows[0], userMap) : null;
+      }
+
+      const database = await readLocalDatabase();
+      return database.users.find((user) => user.id === id) ?? null;
+    },
+
+    async findByEmail(email: string) {
+      if (hasSupabase()) {
+        const rows = await supabaseFetch<Record<string, unknown>[]>(
+          `users?email=eq.${eq(email)}&select=*&limit=1`,
+        );
+        return rows[0] ? fromDbRow<User>(rows[0], userMap) : null;
+      }
+
+      const database = await readLocalDatabase();
+      return database.users.find((user) => user.email === email) ?? null;
+    },
+
+    async create(user: User) {
+      if (hasSupabase()) {
+        const rows = await supabaseFetch<Record<string, unknown>[]>("users?select=*", {
+          method: "POST",
+          headers: { Prefer: "return=representation" },
+          body: JSON.stringify(toDbRow<User>(user, userMap)),
+        });
+        return fromDbRow<User>(rows[0], userMap);
+      }
+
+      const database = await readLocalDatabase();
+      database.users.push(user);
+      await writeLocalDatabase(database);
+      return user;
+    },
+
+    async update(id: string, patch: Partial<User>) {
+      const updatedAt = nowIso();
+
+      if (hasSupabase()) {
+        const rows = await supabaseFetch<Record<string, unknown>[]>(
+          `users?id=eq.${eq(id)}&select=*`,
+          {
+            method: "PATCH",
+            headers: { Prefer: "return=representation" },
+            body: JSON.stringify(toDbRow<User>({ ...patch, updatedAt }, userMap)),
+          },
+        );
+        return rows[0] ? fromDbRow<User>(rows[0], userMap) : null;
+      }
+
+      const database = await readLocalDatabase();
+      const index = database.users.findIndex((user) => user.id === id);
+
+      if (index === -1) {
+        return null;
+      }
+
+      database.users[index] = { ...database.users[index], ...patch, updatedAt };
+      await writeLocalDatabase(database);
+      return database.users[index];
+    },
+  },
+
+  listings: {
+    async listAll() {
+      if (hasSupabase()) {
+        const rows = await supabaseFetch<Record<string, unknown>[]>(
+          "parking_listings?select=*&order=created_at.desc",
+        );
+        return rows.map((row) => fromDbRow<ParkingListing>(row, listingMap));
+      }
+
+      const database = await readLocalDatabase();
+      return database.parkingListings.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+    },
+
+    async listByOwner(ownerId: string) {
+      if (hasSupabase()) {
+        const rows = await supabaseFetch<Record<string, unknown>[]>(
+          `parking_listings?owner_id=eq.${eq(ownerId)}&select=*&order=created_at.desc`,
+        );
+        return rows.map((row) => fromDbRow<ParkingListing>(row, listingMap));
+      }
+
+      const database = await readLocalDatabase();
+      return database.parkingListings
+        .filter((listing) => listing.ownerId === ownerId)
+        .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+    },
+
+    async listLiveVacant() {
+      if (hasSupabase()) {
+        const rows = await supabaseFetch<Record<string, unknown>[]>(
+          "parking_listings?listing_status=eq.LIVE&availability_status=eq.VACANT&select=*",
+        );
+        return rows.map((row) => fromDbRow<ParkingListing>(row, listingMap));
+      }
+
+      const database = await readLocalDatabase();
+      return database.parkingListings.filter(
+        (listing) =>
+          listing.listingStatus === "LIVE" && listing.availabilityStatus === "VACANT",
+      );
+    },
+
+    async findById(id: string) {
+      if (hasSupabase()) {
+        const rows = await supabaseFetch<Record<string, unknown>[]>(
+          `parking_listings?id=eq.${eq(id)}&select=*&limit=1`,
+        );
+        return rows[0] ? fromDbRow<ParkingListing>(rows[0], listingMap) : null;
+      }
+
+      const database = await readLocalDatabase();
+      return database.parkingListings.find((listing) => listing.id === id) ?? null;
+    },
+
+    async create(listing: ParkingListing) {
+      if (hasSupabase()) {
+        const rows = await supabaseFetch<Record<string, unknown>[]>(
+          "parking_listings?select=*",
+          {
+            method: "POST",
+            headers: { Prefer: "return=representation" },
+            body: JSON.stringify(toDbRow<ParkingListing>(listing, listingMap)),
+          },
+        );
+        return fromDbRow<ParkingListing>(rows[0], listingMap);
+      }
+
+      const database = await readLocalDatabase();
+      database.parkingListings.push(listing);
+      await writeLocalDatabase(database);
+      return listing;
+    },
+
+    async update(id: string, patch: Partial<ParkingListing>) {
+      const updatedAt = nowIso();
+
+      if (hasSupabase()) {
+        const rows = await supabaseFetch<Record<string, unknown>[]>(
+          `parking_listings?id=eq.${eq(id)}&select=*`,
+          {
+            method: "PATCH",
+            headers: { Prefer: "return=representation" },
+            body: JSON.stringify(toDbRow<ParkingListing>({ ...patch, updatedAt }, listingMap)),
+          },
+        );
+        return rows[0] ? fromDbRow<ParkingListing>(rows[0], listingMap) : null;
+      }
+
+      const database = await readLocalDatabase();
+      const index = database.parkingListings.findIndex((listing) => listing.id === id);
+
+      if (index === -1) {
+        return null;
+      }
+
+      database.parkingListings[index] = {
+        ...database.parkingListings[index],
+        ...patch,
+        updatedAt,
+      };
+      await writeLocalDatabase(database);
+      return database.parkingListings[index];
+    },
+
+    async delete(id: string) {
+      if (hasSupabase()) {
+        await supabaseFetch<undefined>(`parking_listings?id=eq.${eq(id)}`, {
+          method: "DELETE",
+        });
+        return true;
+      }
+
+      const database = await readLocalDatabase();
+      const before = database.parkingListings.length;
+      database.parkingListings = database.parkingListings.filter((listing) => listing.id !== id);
+      await writeLocalDatabase(database);
+      return database.parkingListings.length !== before;
+    },
+  },
+
+  seekerProfiles: {
+    async listAll() {
+      if (hasSupabase()) {
+        const rows = await supabaseFetch<Record<string, unknown>[]>(
+          "seeker_profiles?select=*&order=created_at.desc",
+        );
+        return rows.map((row) => fromDbRow<SeekerProfile>(row, profileMap));
+      }
+
+      const database = await readLocalDatabase();
+      return database.seekerProfiles.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+    },
+
+    async findByUserId(userId: string) {
+      if (hasSupabase()) {
+        const rows = await supabaseFetch<Record<string, unknown>[]>(
+          `seeker_profiles?user_id=eq.${eq(userId)}&select=*&limit=1`,
+        );
+        return rows[0] ? fromDbRow<SeekerProfile>(rows[0], profileMap) : null;
+      }
+
+      const database = await readLocalDatabase();
+      return database.seekerProfiles.find((profile) => profile.userId === userId) ?? null;
+    },
+
+    async findById(id: string) {
+      if (hasSupabase()) {
+        const rows = await supabaseFetch<Record<string, unknown>[]>(
+          `seeker_profiles?id=eq.${eq(id)}&select=*&limit=1`,
+        );
+        return rows[0] ? fromDbRow<SeekerProfile>(rows[0], profileMap) : null;
+      }
+
+      const database = await readLocalDatabase();
+      return database.seekerProfiles.find((profile) => profile.id === id) ?? null;
+    },
+
+    async upsert(profile: SeekerProfile) {
+      const existing = await this.findByUserId(profile.userId);
+
+      if (existing) {
+        return this.update(existing.id, profile);
+      }
+
+      if (hasSupabase()) {
+        const rows = await supabaseFetch<Record<string, unknown>[]>(
+          "seeker_profiles?select=*",
+          {
+            method: "POST",
+            headers: { Prefer: "return=representation" },
+            body: JSON.stringify(toDbRow<SeekerProfile>(profile, profileMap)),
+          },
+        );
+        return fromDbRow<SeekerProfile>(rows[0], profileMap);
+      }
+
+      const database = await readLocalDatabase();
+      database.seekerProfiles.push(profile);
+      await writeLocalDatabase(database);
+      return profile;
+    },
+
+    async update(id: string, patch: Partial<SeekerProfile>) {
+      const updatedAt = nowIso();
+
+      if (hasSupabase()) {
+        const rows = await supabaseFetch<Record<string, unknown>[]>(
+          `seeker_profiles?id=eq.${eq(id)}&select=*`,
+          {
+            method: "PATCH",
+            headers: { Prefer: "return=representation" },
+            body: JSON.stringify(toDbRow<SeekerProfile>({ ...patch, updatedAt }, profileMap)),
+          },
+        );
+        return rows[0] ? fromDbRow<SeekerProfile>(rows[0], profileMap) : null;
+      }
+
+      const database = await readLocalDatabase();
+      const index = database.seekerProfiles.findIndex((profile) => profile.id === id);
+
+      if (index === -1) {
+        return null;
+      }
+
+      database.seekerProfiles[index] = { ...database.seekerProfiles[index], ...patch, updatedAt };
+      await writeLocalDatabase(database);
+      return database.seekerProfiles[index];
+    },
+  },
+
+  bookings: {
+    async listAll() {
+      if (hasSupabase()) {
+        const rows = await supabaseFetch<Record<string, unknown>[]>(
+          "bookings?select=*&order=created_at.desc",
+        );
+        return rows.map((row) => fromDbRow<Booking>(row, bookingMap));
+      }
+
+      const database = await readLocalDatabase();
+      return database.bookings.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+    },
+
+    async listByOwner(ownerId: string) {
+      if (hasSupabase()) {
+        const rows = await supabaseFetch<Record<string, unknown>[]>(
+          `bookings?owner_id=eq.${eq(ownerId)}&select=*&order=created_at.desc`,
+        );
+        return rows.map((row) => fromDbRow<Booking>(row, bookingMap));
+      }
+
+      const database = await readLocalDatabase();
+      return database.bookings
+        .filter((booking) => booking.ownerId === ownerId)
+        .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+    },
+
+    async listBySeeker(seekerId: string) {
+      if (hasSupabase()) {
+        const rows = await supabaseFetch<Record<string, unknown>[]>(
+          `bookings?seeker_id=eq.${eq(seekerId)}&select=*&order=created_at.desc`,
+        );
+        return rows.map((row) => fromDbRow<Booking>(row, bookingMap));
+      }
+
+      const database = await readLocalDatabase();
+      return database.bookings
+        .filter((booking) => booking.seekerId === seekerId)
+        .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+    },
+
+    async findById(id: string) {
+      if (hasSupabase()) {
+        const rows = await supabaseFetch<Record<string, unknown>[]>(
+          `bookings?id=eq.${eq(id)}&select=*&limit=1`,
+        );
+        return rows[0] ? fromDbRow<Booking>(rows[0], bookingMap) : null;
+      }
+
+      const database = await readLocalDatabase();
+      return database.bookings.find((booking) => booking.id === id) ?? null;
+    },
+
+    async create(booking: Booking) {
+      if (hasSupabase()) {
+        const rows = await supabaseFetch<Record<string, unknown>[]>("bookings?select=*", {
+          method: "POST",
+          headers: { Prefer: "return=representation" },
+          body: JSON.stringify(toDbRow<Booking>(booking, bookingMap)),
+        });
+        return fromDbRow<Booking>(rows[0], bookingMap);
+      }
+
+      const database = await readLocalDatabase();
+      database.bookings.push(booking);
+      await writeLocalDatabase(database);
+      return booking;
+    },
+
+    async update(id: string, patch: Partial<Booking>) {
+      const updatedAt = nowIso();
+
+      if (hasSupabase()) {
+        const rows = await supabaseFetch<Record<string, unknown>[]>(
+          `bookings?id=eq.${eq(id)}&select=*`,
+          {
+            method: "PATCH",
+            headers: { Prefer: "return=representation" },
+            body: JSON.stringify(toDbRow<Booking>({ ...patch, updatedAt }, bookingMap)),
+          },
+        );
+        return rows[0] ? fromDbRow<Booking>(rows[0], bookingMap) : null;
+      }
+
+      const database = await readLocalDatabase();
+      const index = database.bookings.findIndex((booking) => booking.id === id);
+
+      if (index === -1) {
+        return null;
+      }
+
+      database.bookings[index] = { ...database.bookings[index], ...patch, updatedAt };
+      await writeLocalDatabase(database);
+      return database.bookings[index];
+    },
+  },
+};
