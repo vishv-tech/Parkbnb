@@ -23,6 +23,13 @@ end $$;
 
 do $$
 begin
+  create type availability_type as enum ('ALWAYS', 'DAILY', 'ONE_TIME');
+exception
+  when duplicate_object then null;
+end $$;
+
+do $$
+begin
   create type payment_status as enum ('PENDING', 'PAID', 'FAILED');
 exception
   when duplicate_object then null;
@@ -65,9 +72,27 @@ create table if not exists public.parking_listings (
   custom_duration_price numeric(10, 2) not null check (custom_duration_price >= 0),
   availability_status availability_status not null default 'VACANT',
   listing_status listing_status not null default 'LIVE',
+  availability_type availability_type not null default 'ALWAYS',
+  available_days text[] not null default '{}',
+  daily_start_time time,
+  daily_end_time time,
+  one_time_start_date date,
+  one_time_start_time time,
+  one_time_end_date date,
+  one_time_end_time time,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
+
+alter table public.parking_listings
+  add column if not exists availability_type availability_type not null default 'ALWAYS',
+  add column if not exists available_days text[] not null default '{}',
+  add column if not exists daily_start_time time,
+  add column if not exists daily_end_time time,
+  add column if not exists one_time_start_date date,
+  add column if not exists one_time_start_time time,
+  add column if not exists one_time_end_date date,
+  add column if not exists one_time_end_time time;
 
 create table if not exists public.seeker_profiles (
   id uuid primary key default gen_random_uuid(),

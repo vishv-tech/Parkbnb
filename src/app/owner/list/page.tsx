@@ -2,8 +2,11 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { AvailabilityScheduleFields } from "@/components/AvailabilityScheduleFields";
 import { MapPicker } from "@/components/MapPicker";
 import { ProtectedPage } from "@/components/ProtectedPage";
+import { normalizeAvailabilityFields, validateAvailabilitySchedule } from "@/lib/availability";
+import { CONTACT_NUMBER_ERROR, isValidContactNumber, sanitizeContactNumber } from "@/lib/contactNumber";
 import type { SafeUser } from "@/lib/types";
 
 type Coordinates = {
@@ -23,6 +26,9 @@ function OwnerListingForm({ user }: { user: SafeUser }) {
   const [priceTwentyFourHours, setPriceTwentyFourHours] = useState("");
   const [customDurationLabel, setCustomDurationLabel] = useState("Weekend");
   const [customDurationPrice, setCustomDurationPrice] = useState("");
+  const [availability, setAvailability] = useState(() =>
+    normalizeAvailabilityFields({ availabilityType: "ALWAYS" }),
+  );
   const [coordinates, setCoordinates] = useState<Coordinates>({ latitude: null, longitude: null });
   const [image, setImage] = useState<File | null>(null);
   const [preview, setPreview] = useState("");
@@ -39,6 +45,18 @@ function OwnerListingForm({ user }: { user: SafeUser }) {
     event.preventDefault();
     setError("");
     setSuccess("");
+
+    if (!isValidContactNumber(ownerContactNumber)) {
+      setError(CONTACT_NUMBER_ERROR);
+      return;
+    }
+
+    const availabilityError = validateAvailabilitySchedule(availability);
+
+    if (availabilityError) {
+      setError(availabilityError);
+      return;
+    }
 
     if (coordinates.latitude === null || coordinates.longitude === null) {
       setError("Add exact coordinates using current location, address conversion, or the map.");
@@ -61,6 +79,14 @@ function OwnerListingForm({ user }: { user: SafeUser }) {
     formData.append("priceTwentyFourHours", priceTwentyFourHours);
     formData.append("customDurationLabel", customDurationLabel);
     formData.append("customDurationPrice", customDurationPrice);
+    formData.append("availabilityType", availability.availabilityType);
+    availability.availableDays.forEach((day) => formData.append("availableDays", day));
+    formData.append("dailyStartTime", availability.dailyStartTime ?? "");
+    formData.append("dailyEndTime", availability.dailyEndTime ?? "");
+    formData.append("oneTimeStartDate", availability.oneTimeStartDate ?? "");
+    formData.append("oneTimeStartTime", availability.oneTimeStartTime ?? "");
+    formData.append("oneTimeEndDate", availability.oneTimeEndDate ?? "");
+    formData.append("oneTimeEndTime", availability.oneTimeEndTime ?? "");
     formData.append("latitude", String(coordinates.latitude));
     formData.append("longitude", String(coordinates.longitude));
     formData.append("image", image);
@@ -112,7 +138,7 @@ function OwnerListingForm({ user }: { user: SafeUser }) {
         </label>
         <label>
           <span className="label">Contact Number</span>
-          <input className="field" required inputMode="tel" value={ownerContactNumber} onChange={(event) => setOwnerContactNumber(event.target.value)} />
+          <input className="field" required type="tel" inputMode="numeric" maxLength={10} value={ownerContactNumber} onChange={(event) => setOwnerContactNumber(sanitizeContactNumber(event.target.value))} />
         </label>
       </section>
 
@@ -182,6 +208,11 @@ function OwnerListingForm({ user }: { user: SafeUser }) {
           </label>
         </div>
       </section>
+
+      <AvailabilityScheduleFields
+        {...availability}
+        onChange={(patch) => setAvailability((current) => ({ ...current, ...patch }))}
+      />
 
       <section className="card p-5">
         <h2 className="text-xl font-black">Exact Map Location</h2>

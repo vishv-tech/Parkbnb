@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useMemo, useState } from "react";
+import { CONTACT_NUMBER_ERROR, isValidContactNumber, sanitizeContactNumber } from "@/lib/contactNumber";
 import type { UserType } from "@/lib/types";
 
 function SignupForm() {
@@ -23,23 +24,33 @@ function SignupForm() {
   async function submit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setError("");
-    setLoading(true);
 
-    const response = await fetch("/api/auth/signup", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ fullName, email, contactNumber, password, userType }),
-    });
-    const data = await response.json();
-    setLoading(false);
-
-    if (!response.ok) {
-      setError(data.error || "Could not create your account");
+    if (!isValidContactNumber(contactNumber)) {
+      setError(CONTACT_NUMBER_ERROR);
       return;
     }
 
-    router.push(userType === "OWNER" && intent === "list" ? "/owner/list" : userType === "OWNER" ? "/owner/dashboard" : "/seeker/profile");
-    router.refresh();
+    setLoading(true);
+
+    try {
+      const response = await fetch("/api/auth/signup", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ fullName, email, contactNumber, password, userType }),
+      });
+      const data = await response.json().catch(() => ({}));
+
+      if (!response.ok) {
+        setError(data.error || "Could not create your account");
+        return;
+      }
+
+      router.push(userType === "OWNER" && intent === "list" ? "/owner/list" : userType === "OWNER" ? "/owner/dashboard" : "/seeker/profile");
+    } catch {
+      setError("Could not create your account. Please try again.");
+    } finally {
+      setLoading(false);
+    }
   }
 
   return (
@@ -87,9 +98,11 @@ function SignupForm() {
         <input
           className="field"
           required
-          inputMode="tel"
+          type="tel"
+          inputMode="numeric"
+          maxLength={10}
           value={contactNumber}
-          onChange={(event) => setContactNumber(event.target.value)}
+          onChange={(event) => setContactNumber(sanitizeContactNumber(event.target.value))}
         />
       </label>
 

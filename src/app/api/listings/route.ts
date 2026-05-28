@@ -7,6 +7,12 @@ import {
   requireNumber,
   requireString,
 } from "@/lib/api";
+import {
+  isListingBookableNow,
+  normalizeAvailabilityFields,
+  validateAvailabilitySchedule,
+} from "@/lib/availability";
+import { requireContactNumber } from "@/lib/contactNumber";
 import { estimateMinutes, haversineKm } from "@/lib/distance";
 import { nowIso, toPublicListing } from "@/lib/format";
 import { getSessionUser } from "@/lib/session";
@@ -37,7 +43,10 @@ export async function GET(request: NextRequest) {
   const originLatitude = Number(searchParams.get("lat"));
   const originLongitude = Number(searchParams.get("lng"));
   const hasOrigin = Number.isFinite(originLatitude) && Number.isFinite(originLongitude);
-  const listings = await db.listings.listLiveVacant();
+  const now = new Date();
+  const listings = (await db.listings.listLiveVacant()).filter((listing) =>
+    isListingBookableNow(listing, now),
+  );
 
   const publicListings = listings
     .map((listing) => {
@@ -88,11 +97,27 @@ export async function POST(request: NextRequest) {
 
     const now = nowIso();
     const imageUrl = await uploadParkingImage(image, user.id);
+    const availability = normalizeAvailabilityFields({
+      availabilityType: formData.get("availabilityType"),
+      availableDays: formData.getAll("availableDays"),
+      dailyStartTime: formData.get("dailyStartTime"),
+      dailyEndTime: formData.get("dailyEndTime"),
+      oneTimeStartDate: formData.get("oneTimeStartDate"),
+      oneTimeStartTime: formData.get("oneTimeStartTime"),
+      oneTimeEndDate: formData.get("oneTimeEndDate"),
+      oneTimeEndTime: formData.get("oneTimeEndTime"),
+    });
+    const availabilityError = validateAvailabilitySchedule(availability);
+
+    if (availabilityError) {
+      return apiError(availabilityError, 400);
+    }
+
     const listing: ParkingListing = {
       id: randomUUID(),
       ownerId: user.id,
       ownerFullName: requireString(formData.get("ownerFullName"), "Full name"),
-      ownerContactNumber: requireString(formData.get("ownerContactNumber"), "Contact number"),
+      ownerContactNumber: requireContactNumber(formData.get("ownerContactNumber")),
       buildingAddress: requireString(formData.get("buildingAddress"), "Building address"),
       parkingAddressDetails: requireString(
         formData.get("parkingAddressDetails"),
@@ -112,6 +137,7 @@ export async function POST(request: NextRequest) {
       customDurationPrice: requireNumber(formData.get("customDurationPrice"), "Custom price"),
       availabilityStatus: "VACANT",
       listingStatus: "LIVE",
+      ...availability,
       createdAt: now,
       updatedAt: now,
     };

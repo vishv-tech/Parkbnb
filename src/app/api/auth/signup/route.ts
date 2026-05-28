@@ -1,6 +1,7 @@
 import { randomUUID } from "crypto";
 import { NextRequest, NextResponse } from "next/server";
 import { apiError, requireString } from "@/lib/api";
+import { requireContactNumber } from "@/lib/contactNumber";
 import { normalizeEmail, nowIso, toSafeUser } from "@/lib/format";
 import { hashPassword } from "@/lib/password";
 import { setUserSession } from "@/lib/session";
@@ -14,7 +15,7 @@ export async function POST(request: NextRequest) {
     const body = (await request.json()) as Record<string, unknown>;
     const fullName = requireString(body.fullName, "Full name");
     const email = normalizeEmail(requireString(body.email, "Email"));
-    const contactNumber = requireString(body.contactNumber, "Contact number");
+    const contactNumber = requireContactNumber(body.contactNumber);
     const password = requireString(body.password, "Password");
     const userType = requireString(body.userType, "User type") as UserType;
 

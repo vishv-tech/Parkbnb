@@ -11,6 +11,7 @@ function LocationPermission() {
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const locationCaptured = latitude !== "" && longitude !== "";
 
   async function saveLocation(nextLatitude: number, nextLongitude: number) {
     setLoading(true);
@@ -38,9 +39,11 @@ function LocationPermission() {
   function requestLocation() {
     setError("");
     setMessage("To find parking spots near you, please allow location access.");
+    setLoading(true);
 
     if (!navigator.geolocation) {
       setError("Location is not available in this browser.");
+      setLoading(false);
       return;
     }
 
@@ -48,15 +51,18 @@ function LocationPermission() {
       (position) => {
         setLatitude(String(position.coords.latitude));
         setLongitude(String(position.coords.longitude));
-        saveLocation(position.coords.latitude, position.coords.longitude);
+        setMessage("Location captured. Continue to see nearby parking.");
+        setLoading(false);
       },
-      () => setError("Location permission was not granted. You can enter coordinates manually."),
+      () => {
+        setError("Location permission was not granted. Please allow location access to continue.");
+        setLoading(false);
+      },
       { enableHighAccuracy: true, timeout: 12000 },
     );
   }
 
-  async function submitManual(event: React.FormEvent<HTMLFormElement>) {
-    event.preventDefault();
+  async function continueToResults() {
     await saveLocation(Number(latitude), Number(longitude));
   }
 
@@ -71,24 +77,14 @@ function LocationPermission() {
       </div>
 
       <button className="btn-primary h-14 w-full" disabled={loading} onClick={requestLocation} type="button">
-        {loading ? "Saving location..." : "Allow Location Access"}
+        {loading ? "Capturing location..." : "Allow Location Access"}
       </button>
 
-      <form className="grid gap-3 border-t border-[#edf1ef] pt-5" onSubmit={submitManual}>
-        <div className="grid gap-3 sm:grid-cols-2">
-          <label>
-            <span className="label">Latitude</span>
-            <input className="field" required inputMode="decimal" value={latitude} onChange={(event) => setLatitude(event.target.value)} />
-          </label>
-          <label>
-            <span className="label">Longitude</span>
-            <input className="field" required inputMode="decimal" value={longitude} onChange={(event) => setLongitude(event.target.value)} />
-          </label>
-        </div>
-        <button className="btn-ghost w-full" disabled={loading} type="submit">
-          Save Manual Location
+      {locationCaptured && (
+        <button className="btn-ghost w-full" disabled={loading} onClick={continueToResults} type="button">
+          {loading ? "Saving location..." : "Continue"}
         </button>
-      </form>
+      )}
 
       {message && <p className="text-sm font-bold text-[#11614f]">{message}</p>}
       {error && <p className="rounded-lg bg-[#fff0ec] p-3 text-sm font-bold text-[#a93c22]">{error}</p>}

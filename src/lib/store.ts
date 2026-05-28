@@ -7,6 +7,7 @@ import type {
   SeekerProfile,
   User,
 } from "./types";
+import { normalizeAvailabilityFields } from "./availability";
 import { nowIso } from "./format";
 
 type ColumnMap<T extends object> = Record<keyof T & string, string>;
@@ -50,6 +51,14 @@ const listingMap: ColumnMap<ParkingListing> = {
   customDurationPrice: "custom_duration_price",
   availabilityStatus: "availability_status",
   listingStatus: "listing_status",
+  availabilityType: "availability_type",
+  availableDays: "available_days",
+  dailyStartTime: "daily_start_time",
+  dailyEndTime: "daily_end_time",
+  oneTimeStartDate: "one_time_start_date",
+  oneTimeStartTime: "one_time_start_time",
+  oneTimeEndDate: "one_time_end_date",
+  oneTimeEndTime: "one_time_end_time",
   createdAt: "created_at",
   updatedAt: "updated_at",
 };
@@ -143,7 +152,7 @@ function toDbRow<T extends object>(
   const row: Record<string, unknown> = {};
   const source = record as Record<string, unknown>;
 
-  for (const [appKey, columnName] of Object.entries(map)) {
+  for (const [appKey, columnName] of Object.entries(map) as [keyof T & string, string][]) {
     if (source[appKey] !== undefined) {
       row[columnName] = source[appKey];
     }
@@ -158,7 +167,7 @@ function fromDbRow<T extends object>(
 ) {
   const record: Record<string, unknown> = {};
 
-  for (const [appKey, columnName] of Object.entries(map)) {
+  for (const [appKey, columnName] of Object.entries(map) as [keyof T & string, string][]) {
     record[appKey] = row[columnName];
   }
 
@@ -167,6 +176,13 @@ function fromDbRow<T extends object>(
 
 function eq(value: string) {
   return encodeURIComponent(value);
+}
+
+function normalizeListing(listing: ParkingListing) {
+  return {
+    ...listing,
+    ...normalizeAvailabilityFields(listing),
+  };
 }
 
 async function readLocalDatabase() {
@@ -278,11 +294,13 @@ export const db = {
         const rows = await supabaseFetch<Record<string, unknown>[]>(
           "parking_listings?select=*&order=created_at.desc",
         );
-        return rows.map((row) => fromDbRow<ParkingListing>(row, listingMap));
+        return rows.map((row) => normalizeListing(fromDbRow<ParkingListing>(row, listingMap)));
       }
 
       const database = await readLocalDatabase();
-      return database.parkingListings.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+      return database.parkingListings
+        .map(normalizeListing)
+        .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
     },
 
     async listByOwner(ownerId: string) {
@@ -290,11 +308,12 @@ export const db = {
         const rows = await supabaseFetch<Record<string, unknown>[]>(
           `parking_listings?owner_id=eq.${eq(ownerId)}&select=*&order=created_at.desc`,
         );
-        return rows.map((row) => fromDbRow<ParkingListing>(row, listingMap));
+        return rows.map((row) => normalizeListing(fromDbRow<ParkingListing>(row, listingMap)));
       }
 
       const database = await readLocalDatabase();
       return database.parkingListings
+        .map(normalizeListing)
         .filter((listing) => listing.ownerId === ownerId)
         .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
     },
@@ -304,14 +323,16 @@ export const db = {
         const rows = await supabaseFetch<Record<string, unknown>[]>(
           "parking_listings?listing_status=eq.LIVE&availability_status=eq.VACANT&select=*",
         );
-        return rows.map((row) => fromDbRow<ParkingListing>(row, listingMap));
+        return rows.map((row) => normalizeListing(fromDbRow<ParkingListing>(row, listingMap)));
       }
 
       const database = await readLocalDatabase();
-      return database.parkingListings.filter(
-        (listing) =>
-          listing.listingStatus === "LIVE" && listing.availabilityStatus === "VACANT",
-      );
+      return database.parkingListings
+        .map(normalizeListing)
+        .filter(
+          (listing) =>
+            listing.listingStatus === "LIVE" && listing.availabilityStatus === "VACANT",
+        );
     },
 
     async findById(id: string) {
@@ -319,30 +340,33 @@ export const db = {
         const rows = await supabaseFetch<Record<string, unknown>[]>(
           `parking_listings?id=eq.${eq(id)}&select=*&limit=1`,
         );
-        return rows[0] ? fromDbRow<ParkingListing>(rows[0], listingMap) : null;
+        return rows[0] ? normalizeListing(fromDbRow<ParkingListing>(rows[0], listingMap)) : null;
       }
 
       const database = await readLocalDatabase();
-      return database.parkingListings.find((listing) => listing.id === id) ?? null;
+      const listing = database.parkingListings.find((item) => item.id === id);
+      return listing ? normalizeListing(listing) : null;
     },
 
     async create(listing: ParkingListing) {
+      const normalizedListing = normalizeListing(listing);
+
       if (hasSupabase()) {
         const rows = await supabaseFetch<Record<string, unknown>[]>(
           "parking_listings?select=*",
           {
             method: "POST",
             headers: { Prefer: "return=representation" },
-            body: JSON.stringify(toDbRow<ParkingListing>(listing, listingMap)),
+            body: JSON.stringify(toDbRow<ParkingListing>(normalizedListing, listingMap)),
           },
         );
-        return fromDbRow<ParkingListing>(rows[0], listingMap);
+        return normalizeListing(fromDbRow<ParkingListing>(rows[0], listingMap));
       }
 
       const database = await readLocalDatabase();
-      database.parkingListings.push(listing);
+      database.parkingListings.push(normalizedListing);
       await writeLocalDatabase(database);
-      return listing;
+      return normalizedListing;
     },
 
     async update(id: string, patch: Partial<ParkingListing>) {
@@ -357,7 +381,7 @@ export const db = {
             body: JSON.stringify(toDbRow<ParkingListing>({ ...patch, updatedAt }, listingMap)),
           },
         );
-        return rows[0] ? fromDbRow<ParkingListing>(rows[0], listingMap) : null;
+        return rows[0] ? normalizeListing(fromDbRow<ParkingListing>(rows[0], listingMap)) : null;
       }
 
       const database = await readLocalDatabase();
@@ -367,13 +391,13 @@ export const db = {
         return null;
       }
 
-      database.parkingListings[index] = {
+      database.parkingListings[index] = normalizeListing({
         ...database.parkingListings[index],
         ...patch,
         updatedAt,
-      };
+      });
       await writeLocalDatabase(database);
-      return database.parkingListings[index];
+      return normalizeListing(database.parkingListings[index]);
     },
 
     async delete(id: string) {

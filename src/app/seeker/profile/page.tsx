@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { ProtectedPage } from "@/components/ProtectedPage";
+import { CONTACT_NUMBER_ERROR, isValidContactNumber, sanitizeContactNumber } from "@/lib/contactNumber";
 import type { SeekerProfile } from "@/lib/types";
 
 function SeekerProfileForm() {
@@ -33,6 +34,12 @@ function SeekerProfileForm() {
   async function submit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setError("");
+
+    if (!isValidContactNumber(contactNumber)) {
+      setError(CONTACT_NUMBER_ERROR);
+      return;
+    }
+
     setLoading(true);
 
     const response = await fetch("/api/seeker-profile", {
@@ -65,7 +72,7 @@ function SeekerProfileForm() {
 
       <label>
         <span className="label">Contact Number</span>
-        <input className="field" required inputMode="tel" value={contactNumber} onChange={(event) => setContactNumber(event.target.value)} />
+        <input className="field" required type="tel" inputMode="numeric" maxLength={10} value={contactNumber} onChange={(event) => setContactNumber(sanitizeContactNumber(event.target.value))} />
       </label>
 
       <label>

@@ -194,47 +194,14 @@ export function MapPicker({ address, value, onChange }: MapPickerProps) {
           Convert address
         </button>
         <button className="btn-secondary" type="button" onClick={useCurrentLocation}>
-          Use my current location
+          Allow Location Access
         </button>
-      </div>
-
-      <div className="grid gap-3 sm:grid-cols-2">
-        <label>
-          <span className="label">Latitude</span>
-          <input
-            className="field"
-            inputMode="decimal"
-            value={value.latitude ?? ""}
-            onChange={(event) =>
-              onChange({
-                ...value,
-                latitude: event.target.value ? Number(event.target.value) : null,
-              })
-            }
-            placeholder="28.6139"
-          />
-        </label>
-        <label>
-          <span className="label">Longitude</span>
-          <input
-            className="field"
-            inputMode="decimal"
-            value={value.longitude ?? ""}
-            onChange={(event) =>
-              onChange({
-                ...value,
-                longitude: event.target.value ? Number(event.target.value) : null,
-              })
-            }
-            placeholder="77.2090"
-          />
-        </label>
       </div>
 
       <div className="h-64 overflow-hidden rounded-lg border border-[#dbe3df] bg-[#eef5f1]" ref={mapRef}>
         {!key && (
           <div className="grid h-full place-items-center p-5 text-center text-sm font-bold text-[#6b7772]">
-            Add NEXT_PUBLIC_GOOGLE_MAPS_API_KEY to enable map pin selection. Coordinates and current location still work.
+            Add NEXT_PUBLIC_GOOGLE_MAPS_API_KEY to enable map pin selection. Current location still works.
           </div>
         )}
         {key && !mapReady && (

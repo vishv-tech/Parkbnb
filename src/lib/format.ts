@@ -1,4 +1,5 @@
 import type { ParkingListing, PublicListing, SafeUser, User } from "./types";
+import { normalizeAvailabilityFields } from "./availability";
 
 export function nowIso() {
   return new Date().toISOString();
@@ -40,6 +41,8 @@ export function toPublicListing(
   distanceKm: number | null = null,
   estimatedMinutes: number | null = null,
 ): PublicListing {
+  const availability = normalizeAvailabilityFields(listing);
+
   return {
     id: listing.id,
     ownerFullName: listing.ownerFullName,
@@ -51,6 +54,7 @@ export function toPublicListing(
     customDurationPrice: listing.customDurationPrice,
     availabilityStatus: listing.availabilityStatus,
     listingStatus: listing.listingStatus,
+    ...availability,
     distanceKm,
     estimatedMinutes,
     directionsPreview: "Exact floor, gate, slot, and route unlock after payment.",

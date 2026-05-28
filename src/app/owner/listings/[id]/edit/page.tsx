@@ -2,8 +2,11 @@
 
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
+import { AvailabilityScheduleFields } from "@/components/AvailabilityScheduleFields";
 import { MapPicker } from "@/components/MapPicker";
 import { ProtectedPage } from "@/components/ProtectedPage";
+import { normalizeAvailabilityFields, validateAvailabilitySchedule } from "@/lib/availability";
+import { CONTACT_NUMBER_ERROR, isValidContactNumber, sanitizeContactNumber } from "@/lib/contactNumber";
 import type { ParkingListing } from "@/lib/types";
 
 export default function EditListingPage() {
@@ -31,7 +34,7 @@ function EditListingContent() {
           setError(data.error || "Listing not found");
           return;
         }
-        setListing(data.listing);
+        setListing({ ...data.listing, ...normalizeAvailabilityFields(data.listing) });
       })
       .catch(() => {
         setError("Could not load listing");
@@ -46,8 +49,21 @@ function EditListingContent() {
       return;
     }
 
-    setSaving(true);
     setError("");
+
+    if (!isValidContactNumber(listing.ownerContactNumber)) {
+      setError(CONTACT_NUMBER_ERROR);
+      return;
+    }
+
+    const availabilityError = validateAvailabilitySchedule(listing);
+
+    if (availabilityError) {
+      setError(availabilityError);
+      return;
+    }
+
+    setSaving(true);
     const response = await fetch(`/api/listings/${listing.id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
@@ -98,7 +114,7 @@ function EditListingContent() {
           </label>
           <label>
             <span className="label">Contact Number</span>
-            <input className="field" required value={listing.ownerContactNumber} onChange={(event) => setListing({ ...listing, ownerContactNumber: event.target.value })} />
+            <input className="field" required type="tel" inputMode="numeric" maxLength={10} value={listing.ownerContactNumber} onChange={(event) => setListing({ ...listing, ownerContactNumber: sanitizeContactNumber(event.target.value) })} />
           </label>
         </section>
 
@@ -144,6 +160,11 @@ function EditListingContent() {
             </label>
           </div>
         </section>
+
+        <AvailabilityScheduleFields
+          {...normalizeAvailabilityFields(listing)}
+          onChange={(patch) => setListing({ ...listing, ...patch })}
+        />
 
         <section className="card p-5">
           <h2 className="text-xl font-black">Exact Map Location</h2>

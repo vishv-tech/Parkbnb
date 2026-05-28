@@ -1,6 +1,12 @@
 import { randomUUID } from "crypto";
 import { NextRequest } from "next/server";
 import { apiError, apiOk, parseJson, requireString } from "@/lib/api";
+import {
+  durationLabelToHours,
+  formatHourDuration,
+  getMaxBookableHours,
+  parseHourlyDuration,
+} from "@/lib/availability";
 import { listingDurationOptions, nowIso, toPublicListing } from "@/lib/format";
 import { getSessionUser } from "@/lib/session";
 import { db } from "@/lib/store";
@@ -15,6 +21,16 @@ async function attachListing(booking: Booking, revealExact: boolean): Promise<Bo
     ...booking,
     listing: listing ? (revealExact ? listing : toPublicListing(listing)) : null,
   };
+}
+
+function parseSelectedHours(value: unknown) {
+  const number = typeof value === "number" ? value : Number(value);
+
+  if (!Number.isInteger(number) || number < 1) {
+    return null;
+  }
+
+  return number;
 }
 
 export async function GET(request: NextRequest) {
@@ -66,18 +82,59 @@ export async function POST(request: NextRequest) {
     const body = await parseJson(request);
     const listingId = requireString(body.parkingListingId, "Parking listing");
     const selectedDuration = requireString(body.selectedDuration, "Selected duration");
+    const requestedHourlyHours =
+      body.selectedHours !== undefined
+        ? parseSelectedHours(body.selectedHours)
+        : parseHourlyDuration(selectedDuration) === 24
+          ? null
+          : parseHourlyDuration(selectedDuration);
     const listing = await db.listings.findById(listingId);
 
     if (!listing || listing.listingStatus !== "LIVE" || listing.availabilityStatus !== "VACANT") {
       return apiError("This parking spot is no longer available", 409);
     }
 
-    const selectedOption = listingDurationOptions(listing).find(
-      (option) => option.label === selectedDuration,
-    );
+    const maxHours = getMaxBookableHours(listing);
 
-    if (!selectedOption) {
-      return apiError("Invalid duration selected", 400);
+    if (maxHours < 1) {
+      return apiError("Selected duration is outside the owner’s available schedule.", 409);
+    }
+
+    let finalDuration = selectedDuration;
+    let finalPrice = 0;
+
+    if (body.selectedHours !== undefined || requestedHourlyHours !== null) {
+      const selectedHours = requestedHourlyHours ?? parseSelectedHours(body.selectedHours);
+
+      if (!selectedHours) {
+        return apiError("Invalid duration selected", 400);
+      }
+
+      if (selectedHours > maxHours) {
+        return apiError("Selected duration is outside the owner’s available schedule.", 409);
+      }
+
+      finalDuration = formatHourDuration(selectedHours);
+      finalPrice = selectedHours * listing.priceOneHour;
+    } else {
+      const selectedOption = listingDurationOptions(listing).find(
+        (option) => option.label === selectedDuration,
+      );
+
+      if (!selectedOption) {
+        return apiError("Invalid duration selected", 400);
+      }
+
+      const optionHours = durationLabelToHours(selectedOption.label);
+
+      if (
+        listing.availabilityType !== "ALWAYS" &&
+        (optionHours === null || optionHours > maxHours)
+      ) {
+        return apiError("Selected duration is outside the owner’s available schedule.", 409);
+      }
+
+      finalPrice = selectedOption.price;
     }
 
     const now = nowIso();
@@ -90,8 +147,8 @@ export async function POST(request: NextRequest) {
       seekerContact: profile.contactNumber,
       carModel: profile.carModel,
       carNumber: profile.carNumber,
-      selectedDuration,
-      selectedPrice: selectedOption.price,
+      selectedDuration: finalDuration,
+      selectedPrice: finalPrice,
       paymentStatus: "PENDING",
       bookingStatus: "ACTIVE",
       exactLocationUnlocked: false,

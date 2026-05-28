@@ -7,6 +7,20 @@ export type AvailabilityStatus = (typeof AVAILABILITY_STATUSES)[number];
 export const LISTING_STATUSES = ["LIVE", "TAKEN_DOWN"] as const;
 export type ListingStatus = (typeof LISTING_STATUSES)[number];
 
+export const AVAILABILITY_TYPES = ["ALWAYS", "DAILY", "ONE_TIME"] as const;
+export type AvailabilityType = (typeof AVAILABILITY_TYPES)[number];
+
+export const WEEKDAYS = [
+  "Monday",
+  "Tuesday",
+  "Wednesday",
+  "Thursday",
+  "Friday",
+  "Saturday",
+  "Sunday",
+] as const;
+export type Weekday = (typeof WEEKDAYS)[number];
+
 export const PAYMENT_STATUSES = ["PENDING", "PAID", "FAILED"] as const;
 export type PaymentStatus = (typeof PAYMENT_STATUSES)[number];
 
@@ -45,6 +59,14 @@ export type ParkingListing = {
   customDurationPrice: number;
   availabilityStatus: AvailabilityStatus;
   listingStatus: ListingStatus;
+  availabilityType: AvailabilityType;
+  availableDays: string[];
+  dailyStartTime: string | null;
+  dailyEndTime: string | null;
+  oneTimeStartDate: string | null;
+  oneTimeStartTime: string | null;
+  oneTimeEndDate: string | null;
+  oneTimeEndTime: string | null;
   createdAt: string;
   updatedAt: string;
 };
@@ -93,6 +115,14 @@ export type PublicListing = {
   customDurationPrice: number;
   availabilityStatus: AvailabilityStatus;
   listingStatus: ListingStatus;
+  availabilityType: AvailabilityType;
+  availableDays: string[];
+  dailyStartTime: string | null;
+  dailyEndTime: string | null;
+  oneTimeStartDate: string | null;
+  oneTimeStartTime: string | null;
+  oneTimeEndDate: string | null;
+  oneTimeEndTime: string | null;
   distanceKm: number | null;
   estimatedMinutes: number | null;
   directionsPreview: string;

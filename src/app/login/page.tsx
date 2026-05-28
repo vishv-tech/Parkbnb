@@ -22,22 +22,26 @@ function LoginForm() {
     setError("");
     setLoading(true);
 
-    const response = await fetch("/api/auth/login", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email, password }),
-    });
-    const data = await response.json();
-    setLoading(false);
+    try {
+      const response = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password }),
+      });
+      const data = await response.json().catch(() => ({}));
 
-    if (!response.ok) {
-      setError(data.error || "Could not login");
-      return;
+      if (!response.ok) {
+        setError(data.error || "Could not login");
+        return;
+      }
+
+      const userType = data.user.userType as UserType;
+      router.push(userType === "OWNER" && intent === "list" ? "/owner/list" : userType === "OWNER" ? "/owner/dashboard" : "/seeker/profile");
+    } catch {
+      setError("Could not login. Please try again.");
+    } finally {
+      setLoading(false);
     }
-
-    const userType = data.user.userType as UserType;
-    router.push(userType === "OWNER" && intent === "list" ? "/owner/list" : userType === "OWNER" ? "/owner/dashboard" : "/seeker/profile");
-    router.refresh();
   }
 
   return (

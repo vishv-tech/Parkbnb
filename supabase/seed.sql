@@ -59,6 +59,14 @@ insert into public.parking_listings (
   custom_duration_price,
   availability_status,
   listing_status,
+  availability_type,
+  available_days,
+  daily_start_time,
+  daily_end_time,
+  one_time_start_date,
+  one_time_start_time,
+  one_time_end_date,
+  one_time_end_time,
   created_at,
   updated_at
 )
@@ -81,6 +89,14 @@ values
   700,
   'VACANT',
   'LIVE',
+  'ALWAYS',
+  '{}',
+  null,
+  null,
+  null,
+  null,
+  null,
+  null,
   now(),
   now()
 ),
@@ -102,6 +118,14 @@ values
   450,
   'OCCUPIED',
   'LIVE',
+  'ALWAYS',
+  '{}',
+  null,
+  null,
+  null,
+  null,
+  null,
+  null,
   now(),
   now()
 )
@@ -121,6 +145,14 @@ on conflict (id) do update set
   custom_duration_price = excluded.custom_duration_price,
   availability_status = excluded.availability_status,
   listing_status = excluded.listing_status,
+  availability_type = excluded.availability_type,
+  available_days = excluded.available_days,
+  daily_start_time = excluded.daily_start_time,
+  daily_end_time = excluded.daily_end_time,
+  one_time_start_date = excluded.one_time_start_date,
+  one_time_start_time = excluded.one_time_start_time,
+  one_time_end_date = excluded.one_time_end_date,
+  one_time_end_time = excluded.one_time_end_time,
   updated_at = now();
 
 insert into public.seeker_profiles (

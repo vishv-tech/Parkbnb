@@ -1,6 +1,7 @@
 import { randomUUID } from "crypto";
 import { NextRequest } from "next/server";
 import { apiError, apiOk, parseJson, requireNumber, requireString } from "@/lib/api";
+import { requireContactNumber } from "@/lib/contactNumber";
 import { nowIso } from "@/lib/format";
 import { getSessionUser } from "@/lib/session";
 import { db } from "@/lib/store";
@@ -42,7 +43,7 @@ export async function POST(request: NextRequest) {
       id: existing?.id || randomUUID(),
       userId: user.id,
       name: requireString(body.name, "Name"),
-      contactNumber: requireString(body.contactNumber, "Contact number"),
+      contactNumber: requireContactNumber(body.contactNumber),
       carModel: requireString(body.carModel, "Car model"),
       carNumber: requireString(body.carNumber, "Car number"),
       currentLatitude:

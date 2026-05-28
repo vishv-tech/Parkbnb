@@ -6,6 +6,11 @@ import {
   parseJson,
   requireNumber,
 } from "@/lib/api";
+import {
+  normalizeAvailabilityFields,
+  validateAvailabilitySchedule,
+} from "@/lib/availability";
+import { requireContactNumber } from "@/lib/contactNumber";
 import { estimateMinutes, haversineKm } from "@/lib/distance";
 import { toPublicListing } from "@/lib/format";
 import { getAdminSession, getSessionUser } from "@/lib/session";
@@ -17,6 +22,17 @@ export const runtime = "nodejs";
 type RouteContext = {
   params: Promise<{ id: string }>;
 };
+
+const availabilityFieldKeys = [
+  "availabilityType",
+  "availableDays",
+  "dailyStartTime",
+  "dailyEndTime",
+  "oneTimeStartDate",
+  "oneTimeStartTime",
+  "oneTimeEndDate",
+  "oneTimeEndTime",
+] as const;
 
 export async function GET(request: NextRequest, context: RouteContext) {
   const { id } = await context.params;
@@ -75,7 +91,9 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
       patch.listingStatus = "LIVE";
     } else {
       if (typeof body.ownerFullName === "string") patch.ownerFullName = body.ownerFullName.trim();
-      if (typeof body.ownerContactNumber === "string") patch.ownerContactNumber = body.ownerContactNumber.trim();
+      if (body.ownerContactNumber !== undefined) {
+        patch.ownerContactNumber = requireContactNumber(body.ownerContactNumber);
+      }
       if (typeof body.buildingAddress === "string") patch.buildingAddress = body.buildingAddress.trim();
       if (typeof body.parkingAddressDetails === "string") {
         patch.parkingAddressDetails = body.parkingAddressDetails.trim();
@@ -93,6 +111,26 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
       }
       if (body.customDurationPrice !== undefined) {
         patch.customDurationPrice = requireNumber(body.customDurationPrice, "Custom price");
+      }
+
+      if (availabilityFieldKeys.some((key) => body[key] !== undefined)) {
+        const availability = normalizeAvailabilityFields({
+          availabilityType: body.availabilityType ?? listing.availabilityType,
+          availableDays: body.availableDays ?? listing.availableDays,
+          dailyStartTime: body.dailyStartTime ?? listing.dailyStartTime,
+          dailyEndTime: body.dailyEndTime ?? listing.dailyEndTime,
+          oneTimeStartDate: body.oneTimeStartDate ?? listing.oneTimeStartDate,
+          oneTimeStartTime: body.oneTimeStartTime ?? listing.oneTimeStartTime,
+          oneTimeEndDate: body.oneTimeEndDate ?? listing.oneTimeEndDate,
+          oneTimeEndTime: body.oneTimeEndTime ?? listing.oneTimeEndTime,
+        });
+        const availabilityError = validateAvailabilitySchedule(availability);
+
+        if (availabilityError) {
+          return apiError(availabilityError, 400);
+        }
+
+        Object.assign(patch, availability);
       }
     }
 
