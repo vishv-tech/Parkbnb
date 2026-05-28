@@ -5,7 +5,7 @@ import { useEffect, useState } from "react";
 import { ProtectedPage } from "@/components/ProtectedPage";
 import { StatusBadge } from "@/components/StatusBadge";
 import { money } from "@/lib/format";
-import type { BookingWithListing, ParkingListing, PublicListing } from "@/lib/types";
+import type { BookingWithListing, Notification, ParkingListing, PublicListing } from "@/lib/types";
 
 function listingLabel(listing: ParkingListing | PublicListing | null) {
   if (!listing) {
@@ -17,21 +17,35 @@ function listingLabel(listing: ParkingListing | PublicListing | null) {
 
 function MyBookingsContent() {
   const [bookings, setBookings] = useState<BookingWithListing[]>([]);
+  const [notifications, setNotifications] = useState<Notification[]>([]);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetch("/api/bookings", { cache: "no-store" })
-      .then((response) => response.json())
-      .then((data: { bookings?: BookingWithListing[]; error?: string }) => {
+    Promise.all([
+      fetch("/api/bookings", { cache: "no-store" }),
+      fetch("/api/notifications", { cache: "no-store" }),
+    ])
+      .then(async ([bookingsResponse, notificationsResponse]) => {
+        const bookingsData = (await bookingsResponse.json()) as {
+          bookings?: BookingWithListing[];
+          error?: string;
+        };
+        const notificationsData = (await notificationsResponse.json()) as {
+          notifications?: Notification[];
+        };
         setLoading(false);
 
-        if (data.error || !data.bookings) {
-          setError(data.error || "Could not load bookings");
+        if (!bookingsResponse.ok || bookingsData.error || !bookingsData.bookings) {
+          setError(bookingsData.error || "Could not load bookings");
           return;
         }
 
-        setBookings(data.bookings);
+        setBookings(bookingsData.bookings);
+
+        if (notificationsResponse.ok && notificationsData.notifications) {
+          setNotifications(notificationsData.notifications);
+        }
       })
       .catch(() => {
         setError("Could not load bookings");
@@ -58,29 +72,43 @@ function MyBookingsContent() {
             </Link>
           </div>
         )}
-        {bookings.map((booking) => (
-          <article className="card grid gap-4 p-4 sm:grid-cols-[1fr_auto] sm:items-center" key={booking.id}>
-            <div>
-              <h2 className="text-lg font-black">{listingLabel(booking.listing)}</h2>
-              <p className="mt-1 text-sm font-bold text-[#6b7772]">
-                {booking.selectedDuration} - {money(booking.selectedPrice)}
-              </p>
-              <div className="mt-3 flex flex-wrap gap-2">
-                <StatusBadge value={booking.paymentStatus} />
-                <StatusBadge value={booking.bookingStatus} />
+        {bookings.map((booking) => {
+          const bookingWarnings = notifications.filter(
+            (notification) =>
+              notification.bookingId === booking.id &&
+              notification.type === "OVERSTAY_WARNING" &&
+              !notification.isRead,
+          );
+
+          return (
+            <article className="card grid gap-4 p-4 sm:grid-cols-[1fr_auto] sm:items-center" key={booking.id}>
+              <div>
+                <h2 className="text-lg font-black">{listingLabel(booking.listing)}</h2>
+                <p className="mt-1 text-sm font-bold text-[#6b7772]">
+                  {booking.selectedDuration} - {money(booking.selectedPrice)}
+                </p>
+                {bookingWarnings.map((notification) => (
+                  <p className="mt-3 rounded-lg bg-[#fff0ec] p-3 text-sm font-bold text-[#a93c22]" key={notification.id}>
+                    {notification.message}
+                  </p>
+                ))}
+                <div className="mt-3 flex flex-wrap gap-2">
+                  <StatusBadge value={booking.paymentStatus} />
+                  <StatusBadge value={booking.bookingStatus} />
+                </div>
               </div>
-            </div>
-            {booking.paymentStatus === "PAID" ? (
-              <Link className="btn-primary" href={`/booking/${booking.id}/confirmed`}>
-                View Details
-              </Link>
-            ) : (
-              <Link className="btn-secondary" href={`/payment/${booking.id}`}>
-                Complete Payment
-              </Link>
-            )}
-          </article>
-        ))}
+              {booking.paymentStatus === "PAID" ? (
+                <Link className="btn-primary" href={`/booking/${booking.id}/confirmed`}>
+                  View Details
+                </Link>
+              ) : (
+                <Link className="btn-secondary" href={`/payment/${booking.id}`}>
+                  Complete Payment
+                </Link>
+              )}
+            </article>
+          );
+        })}
       </section>
     </main>
   );

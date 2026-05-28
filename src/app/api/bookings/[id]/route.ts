@@ -1,5 +1,6 @@
 import { NextRequest } from "next/server";
 import { apiError, apiOk } from "@/lib/api";
+import { expireCompletedBookings } from "@/lib/bookingExpiry";
 import { toPublicListing } from "@/lib/format";
 import { getAdminSession, getSessionUser } from "@/lib/session";
 import { db } from "@/lib/store";
@@ -11,6 +12,8 @@ type RouteContext = {
 };
 
 export async function GET(request: NextRequest, context: RouteContext) {
+  await expireCompletedBookings();
+
   const { id } = await context.params;
   const user = await getSessionUser(request);
   const admin = getAdminSession(request);

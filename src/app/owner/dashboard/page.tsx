@@ -5,7 +5,8 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { ProtectedPage } from "@/components/ProtectedPage";
 import { StatusBadge } from "@/components/StatusBadge";
 import { money } from "@/lib/format";
-import type { BookingWithListing, ParkingListing } from "@/lib/types";
+import { ISSUE_TYPES } from "@/lib/types";
+import type { BookingWithListing, IssueType, ParkingListing } from "@/lib/types";
 
 type ListingsResponse = {
   listings: ParkingListing[];
@@ -27,6 +28,12 @@ function Stat({ label, value }: { label: string; value: number }) {
 function OwnerDashboardContent() {
   const [listings, setListings] = useState<ParkingListing[]>([]);
   const [bookings, setBookings] = useState<BookingWithListing[]>([]);
+  const [reportBooking, setReportBooking] = useState<BookingWithListing | null>(null);
+  const [issueType, setIssueType] = useState<IssueType>(ISSUE_TYPES[0]);
+  const [issueMessage, setIssueMessage] = useState("");
+  const [reporting, setReporting] = useState(false);
+  const [reportMessage, setReportMessage] = useState("");
+  const [reportError, setReportError] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
 
@@ -82,6 +89,40 @@ function OwnerDashboardContent() {
 
     await fetch(`/api/listings/${id}`, { method: "DELETE" });
     await load();
+  }
+
+  async function submitIssueReport(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+
+    if (!reportBooking) {
+      return;
+    }
+
+    setReporting(true);
+    setReportError("");
+    setReportMessage("");
+
+    const response = await fetch("/api/issue-reports", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        bookingId: reportBooking.id,
+        issueType,
+        message: issueMessage,
+      }),
+    });
+    const data = await response.json();
+    setReporting(false);
+
+    if (!response.ok) {
+      setReportError(data.error || "Could not submit issue report");
+      return;
+    }
+
+    setReportBooking(null);
+    setIssueType(ISSUE_TYPES[0]);
+    setIssueMessage("");
+    setReportMessage(data.message || "Issue reported successfully. Our team will review it.");
   }
 
   return (
@@ -152,6 +193,11 @@ function OwnerDashboardContent() {
 
       <section className="mt-8">
         <h2 className="text-xl font-black">Booking Requests and Active Bookings</h2>
+        {reportMessage && (
+          <p className="mt-4 rounded-lg bg-[#e9f7f2] p-3 text-sm font-bold text-[#11614f]">
+            {reportMessage}
+          </p>
+        )}
         <div className="mt-4 grid gap-3">
           {bookings.length === 0 && (
             <div className="card p-5 text-sm font-bold text-[#6b7772]">No bookings yet.</div>
@@ -170,10 +216,73 @@ function OwnerDashboardContent() {
               <div className="flex flex-wrap gap-2 sm:justify-end">
                 <StatusBadge value={booking.paymentStatus} />
                 <StatusBadge value={booking.bookingStatus} />
+                <button
+                  className="btn-ghost min-h-10 px-3 text-sm"
+                  type="button"
+                  onClick={() => {
+                    setReportBooking(booking);
+                    setReportError("");
+                    setReportMessage("");
+                  }}
+                >
+                  Report Issue
+                </button>
               </div>
             </article>
           ))}
         </div>
+
+        {reportBooking && (
+          <form className="card mt-4 grid gap-4 p-4" onSubmit={submitIssueReport}>
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <h3 className="text-lg font-black">Report Booking Issue</h3>
+                <p className="mt-1 text-sm font-bold text-[#6b7772]">
+                  {reportBooking.seekerName} - {reportBooking.carNumber}
+                </p>
+              </div>
+              <button className="btn-ghost min-h-10 px-3 text-sm" type="button" onClick={() => setReportBooking(null)}>
+                Cancel
+              </button>
+            </div>
+
+            <label>
+              <span className="label">Issue type</span>
+              <select
+                className="field"
+                required
+                value={issueType}
+                onChange={(event) => setIssueType(event.target.value as IssueType)}
+              >
+                {ISSUE_TYPES.map((type) => (
+                  <option key={type} value={type}>
+                    {type}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            <label>
+              <span className="label">Message</span>
+              <textarea
+                className="field min-h-28"
+                placeholder="Explain the issue briefly..."
+                value={issueMessage}
+                onChange={(event) => setIssueMessage(event.target.value)}
+              />
+            </label>
+
+            {reportError && (
+              <p className="rounded-lg bg-[#fff0ec] p-3 text-sm font-bold text-[#a93c22]">
+                {reportError}
+              </p>
+            )}
+
+            <button className="btn-primary h-12 w-full sm:w-auto" disabled={reporting} type="submit">
+              {reporting ? "Submitting..." : "Submit Report"}
+            </button>
+          </form>
+        )}
       </section>
     </main>
   );

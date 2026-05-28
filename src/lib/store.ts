@@ -2,7 +2,9 @@ import { promises as fs } from "fs";
 import path from "path";
 import type {
   Booking,
+  IssueReport,
   LocalDatabase,
+  Notification,
   ParkingListing,
   SeekerProfile,
   User,
@@ -17,6 +19,8 @@ const initialDatabase: LocalDatabase = {
   parkingListings: [],
   seekerProfiles: [],
   bookings: [],
+  issueReports: [],
+  notifications: [],
 };
 
 const localDatabasePath = path.join(process.cwd(), ".data", "park2bnb.json");
@@ -87,6 +91,8 @@ const bookingMap: ColumnMap<Booking> = {
   carNumber: "car_number",
   selectedDuration: "selected_duration",
   selectedPrice: "selected_price",
+  bookingStartTime: "booking_start_time",
+  bookingEndTime: "booking_end_time",
   paymentStatus: "payment_status",
   bookingStatus: "booking_status",
   exactLocationUnlocked: "exact_location_unlocked",
@@ -94,6 +100,39 @@ const bookingMap: ColumnMap<Booking> = {
   razorpayPaymentId: "razorpay_payment_id",
   createdAt: "created_at",
   updatedAt: "updated_at",
+};
+
+const issueReportMap: ColumnMap<IssueReport> = {
+  id: "id",
+  bookingId: "booking_id",
+  listingId: "listing_id",
+  ownerId: "owner_id",
+  seekerId: "seeker_id",
+  issueType: "issue_type",
+  message: "message",
+  status: "status",
+  ownerName: "owner_name",
+  ownerContact: "owner_contact",
+  seekerName: "seeker_name",
+  seekerContact: "seeker_contact",
+  carModel: "car_model",
+  carNumber: "car_number",
+  listingAddress: "listing_address",
+  bookingStartTime: "booking_start_time",
+  bookingEndTime: "booking_end_time",
+  createdAt: "created_at",
+  updatedAt: "updated_at",
+};
+
+const notificationMap: ColumnMap<Notification> = {
+  id: "id",
+  userId: "user_id",
+  bookingId: "booking_id",
+  type: "type",
+  title: "title",
+  message: "message",
+  isRead: "is_read",
+  createdAt: "created_at",
 };
 
 function hasSupabase() {
@@ -185,12 +224,31 @@ function normalizeListing(listing: ParkingListing) {
   };
 }
 
+function normalizeBooking(booking: Booking) {
+  return {
+    ...booking,
+    bookingStartTime: booking.bookingStartTime ?? null,
+    bookingEndTime: booking.bookingEndTime ?? null,
+  };
+}
+
+function normalizeLocalDatabase(database: Partial<LocalDatabase>): LocalDatabase {
+  return {
+    users: database.users ?? [],
+    parkingListings: (database.parkingListings ?? []).map(normalizeListing),
+    seekerProfiles: database.seekerProfiles ?? [],
+    bookings: (database.bookings ?? []).map(normalizeBooking),
+    issueReports: database.issueReports ?? [],
+    notifications: database.notifications ?? [],
+  };
+}
+
 async function readLocalDatabase() {
   await fs.mkdir(path.dirname(localDatabasePath), { recursive: true });
 
   try {
     const raw = await fs.readFile(localDatabasePath, "utf8");
-    return JSON.parse(raw) as LocalDatabase;
+    return normalizeLocalDatabase(JSON.parse(raw) as Partial<LocalDatabase>);
   } catch (error) {
     const code = (error as NodeJS.ErrnoException).code;
 
@@ -199,7 +257,7 @@ async function readLocalDatabase() {
     }
 
     await writeLocalDatabase(initialDatabase);
-    return structuredClone(initialDatabase);
+    return normalizeLocalDatabase(structuredClone(initialDatabase));
   }
 }
 
@@ -512,11 +570,13 @@ export const db = {
         const rows = await supabaseFetch<Record<string, unknown>[]>(
           "bookings?select=*&order=created_at.desc",
         );
-        return rows.map((row) => fromDbRow<Booking>(row, bookingMap));
+        return rows.map((row) => normalizeBooking(fromDbRow<Booking>(row, bookingMap)));
       }
 
       const database = await readLocalDatabase();
-      return database.bookings.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+      return database.bookings
+        .map(normalizeBooking)
+        .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
     },
 
     async listByOwner(ownerId: string) {
@@ -524,11 +584,12 @@ export const db = {
         const rows = await supabaseFetch<Record<string, unknown>[]>(
           `bookings?owner_id=eq.${eq(ownerId)}&select=*&order=created_at.desc`,
         );
-        return rows.map((row) => fromDbRow<Booking>(row, bookingMap));
+        return rows.map((row) => normalizeBooking(fromDbRow<Booking>(row, bookingMap)));
       }
 
       const database = await readLocalDatabase();
       return database.bookings
+        .map(normalizeBooking)
         .filter((booking) => booking.ownerId === ownerId)
         .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
     },
@@ -538,11 +599,12 @@ export const db = {
         const rows = await supabaseFetch<Record<string, unknown>[]>(
           `bookings?seeker_id=eq.${eq(seekerId)}&select=*&order=created_at.desc`,
         );
-        return rows.map((row) => fromDbRow<Booking>(row, bookingMap));
+        return rows.map((row) => normalizeBooking(fromDbRow<Booking>(row, bookingMap)));
       }
 
       const database = await readLocalDatabase();
       return database.bookings
+        .map(normalizeBooking)
         .filter((booking) => booking.seekerId === seekerId)
         .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
     },
@@ -552,27 +614,30 @@ export const db = {
         const rows = await supabaseFetch<Record<string, unknown>[]>(
           `bookings?id=eq.${eq(id)}&select=*&limit=1`,
         );
-        return rows[0] ? fromDbRow<Booking>(rows[0], bookingMap) : null;
+        return rows[0] ? normalizeBooking(fromDbRow<Booking>(rows[0], bookingMap)) : null;
       }
 
       const database = await readLocalDatabase();
-      return database.bookings.find((booking) => booking.id === id) ?? null;
+      const booking = database.bookings.find((item) => item.id === id);
+      return booking ? normalizeBooking(booking) : null;
     },
 
     async create(booking: Booking) {
+      const normalizedBooking = normalizeBooking(booking);
+
       if (hasSupabase()) {
         const rows = await supabaseFetch<Record<string, unknown>[]>("bookings?select=*", {
           method: "POST",
           headers: { Prefer: "return=representation" },
-          body: JSON.stringify(toDbRow<Booking>(booking, bookingMap)),
+          body: JSON.stringify(toDbRow<Booking>(normalizedBooking, bookingMap)),
         });
-        return fromDbRow<Booking>(rows[0], bookingMap);
+        return normalizeBooking(fromDbRow<Booking>(rows[0], bookingMap));
       }
 
       const database = await readLocalDatabase();
-      database.bookings.push(booking);
+      database.bookings.push(normalizedBooking);
       await writeLocalDatabase(database);
-      return booking;
+      return normalizedBooking;
     },
 
     async update(id: string, patch: Partial<Booking>) {
@@ -587,7 +652,7 @@ export const db = {
             body: JSON.stringify(toDbRow<Booking>({ ...patch, updatedAt }, bookingMap)),
           },
         );
-        return rows[0] ? fromDbRow<Booking>(rows[0], bookingMap) : null;
+        return rows[0] ? normalizeBooking(fromDbRow<Booking>(rows[0], bookingMap)) : null;
       }
 
       const database = await readLocalDatabase();
@@ -597,9 +662,98 @@ export const db = {
         return null;
       }
 
-      database.bookings[index] = { ...database.bookings[index], ...patch, updatedAt };
+      database.bookings[index] = normalizeBooking({ ...database.bookings[index], ...patch, updatedAt });
       await writeLocalDatabase(database);
-      return database.bookings[index];
+      return normalizeBooking(database.bookings[index]);
+    },
+  },
+
+  issueReports: {
+    async listAll() {
+      if (hasSupabase()) {
+        const rows = await supabaseFetch<Record<string, unknown>[]>(
+          "issue_reports?select=*&order=created_at.desc",
+        );
+        return rows.map((row) => fromDbRow<IssueReport>(row, issueReportMap));
+      }
+
+      const database = await readLocalDatabase();
+      return database.issueReports.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+    },
+
+    async create(report: IssueReport) {
+      if (hasSupabase()) {
+        const rows = await supabaseFetch<Record<string, unknown>[]>("issue_reports?select=*", {
+          method: "POST",
+          headers: { Prefer: "return=representation" },
+          body: JSON.stringify(toDbRow<IssueReport>(report, issueReportMap)),
+        });
+        return fromDbRow<IssueReport>(rows[0], issueReportMap);
+      }
+
+      const database = await readLocalDatabase();
+      database.issueReports.push(report);
+      await writeLocalDatabase(database);
+      return report;
+    },
+
+    async updateStatus(id: string, status: IssueReport["status"]) {
+      const updatedAt = nowIso();
+
+      if (hasSupabase()) {
+        const rows = await supabaseFetch<Record<string, unknown>[]>(
+          `issue_reports?id=eq.${eq(id)}&select=*`,
+          {
+            method: "PATCH",
+            headers: { Prefer: "return=representation" },
+            body: JSON.stringify(toDbRow<IssueReport>({ status, updatedAt }, issueReportMap)),
+          },
+        );
+        return rows[0] ? fromDbRow<IssueReport>(rows[0], issueReportMap) : null;
+      }
+
+      const database = await readLocalDatabase();
+      const index = database.issueReports.findIndex((report) => report.id === id);
+
+      if (index === -1) {
+        return null;
+      }
+
+      database.issueReports[index] = { ...database.issueReports[index], status, updatedAt };
+      await writeLocalDatabase(database);
+      return database.issueReports[index];
+    },
+  },
+
+  notifications: {
+    async listByUserId(userId: string) {
+      if (hasSupabase()) {
+        const rows = await supabaseFetch<Record<string, unknown>[]>(
+          `notifications?user_id=eq.${eq(userId)}&select=*&order=created_at.desc`,
+        );
+        return rows.map((row) => fromDbRow<Notification>(row, notificationMap));
+      }
+
+      const database = await readLocalDatabase();
+      return database.notifications
+        .filter((notification) => notification.userId === userId)
+        .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+    },
+
+    async create(notification: Notification) {
+      if (hasSupabase()) {
+        const rows = await supabaseFetch<Record<string, unknown>[]>("notifications?select=*", {
+          method: "POST",
+          headers: { Prefer: "return=representation" },
+          body: JSON.stringify(toDbRow<Notification>(notification, notificationMap)),
+        });
+        return fromDbRow<Notification>(rows[0], notificationMap);
+      }
+
+      const database = await readLocalDatabase();
+      database.notifications.push(notification);
+      await writeLocalDatabase(database);
+      return notification;
     },
   },
 };

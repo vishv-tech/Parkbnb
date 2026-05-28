@@ -10,8 +10,8 @@ export async function POST(request: NextRequest) {
     const body = (await request.json()) as Record<string, unknown>;
     const email = normalizeEmail(requireString(body.email, "Email"));
     const password = requireString(body.password, "Password");
-    const expectedEmail = normalizeEmail(process.env.ADMIN_EMAIL || "admin@park2bnb.local");
-    const expectedPassword = process.env.ADMIN_PASSWORD || "admin123";
+    const expectedEmail = normalizeEmail(process.env.ADMIN_EMAIL || "adminvishv@park2bnb.local");
+    const expectedPassword = process.env.ADMIN_PASSWORD || "vishuparkbnb1440";
 
     if (email !== expectedEmail || password !== expectedPassword) {
       return apiError("Invalid admin credentials", 401);

@@ -7,6 +7,7 @@ import {
   getMaxBookableHours,
   parseHourlyDuration,
 } from "@/lib/availability";
+import { calculateBookingWindow, expireCompletedBookings } from "@/lib/bookingExpiry";
 import { listingDurationOptions, nowIso, toPublicListing } from "@/lib/format";
 import { getSessionUser } from "@/lib/session";
 import { db } from "@/lib/store";
@@ -34,6 +35,8 @@ function parseSelectedHours(value: unknown) {
 }
 
 export async function GET(request: NextRequest) {
+  await expireCompletedBookings();
+
   const user = await getSessionUser(request);
 
   if (!user) {
@@ -63,6 +66,8 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
+    await expireCompletedBookings();
+
     const user = await getSessionUser(request);
 
     if (!user) {
@@ -138,6 +143,7 @@ export async function POST(request: NextRequest) {
     }
 
     const now = nowIso();
+    const bookingWindow = calculateBookingWindow(finalDuration, new Date(now));
     const booking: Booking = {
       id: randomUUID(),
       seekerId: profile.id,
@@ -149,6 +155,8 @@ export async function POST(request: NextRequest) {
       carNumber: profile.carNumber,
       selectedDuration: finalDuration,
       selectedPrice: finalPrice,
+      bookingStartTime: bookingWindow.bookingStartTime,
+      bookingEndTime: bookingWindow.bookingEndTime,
       paymentStatus: "PENDING",
       bookingStatus: "ACTIVE",
       exactLocationUnlocked: false,

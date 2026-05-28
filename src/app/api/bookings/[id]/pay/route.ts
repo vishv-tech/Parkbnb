@@ -1,6 +1,7 @@
 import { createHmac, timingSafeEqual } from "crypto";
 import { NextRequest } from "next/server";
 import { apiError, apiOk, parseJson } from "@/lib/api";
+import { calculateBookingWindow, expireCompletedBookings } from "@/lib/bookingExpiry";
 import { getSessionUser } from "@/lib/session";
 import { db } from "@/lib/store";
 
@@ -17,6 +18,8 @@ function safeEqual(left: string, right: string) {
 }
 
 export async function POST(request: NextRequest, context: RouteContext) {
+  await expireCompletedBookings();
+
   const { id } = await context.params;
   const user = await getSessionUser(request);
 
@@ -76,11 +79,16 @@ export async function POST(request: NextRequest, context: RouteContext) {
         ? `mock_${Date.now()}`
         : null;
 
+  const bookingWindow =
+    booking.bookingStartTime && booking.bookingEndTime
+      ? {}
+      : calculateBookingWindow(booking.selectedDuration);
   const paidBooking = await db.bookings.update(booking.id, {
     paymentStatus: "PAID",
     exactLocationUnlocked: true,
     razorpayOrderId: nextOrderId || null,
     razorpayPaymentId: nextPaymentId,
+    ...bookingWindow,
   });
 
   await db.listings.update(listing.id, { availabilityStatus: "OCCUPIED" });

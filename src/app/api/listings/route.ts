@@ -12,6 +12,7 @@ import {
   normalizeAvailabilityFields,
   validateAvailabilitySchedule,
 } from "@/lib/availability";
+import { expireCompletedBookings } from "@/lib/bookingExpiry";
 import { requireContactNumber } from "@/lib/contactNumber";
 import { estimateMinutes, haversineKm } from "@/lib/distance";
 import { nowIso, toPublicListing } from "@/lib/format";
@@ -23,6 +24,8 @@ import type { ParkingListing } from "@/lib/types";
 export const runtime = "nodejs";
 
 export async function GET(request: NextRequest) {
+  await expireCompletedBookings();
+
   const user = await getSessionUser(request);
 
   if (!user) {

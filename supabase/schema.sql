@@ -42,6 +42,20 @@ exception
   when duplicate_object then null;
 end $$;
 
+do $$
+begin
+  create type issue_report_status as enum ('PENDING', 'REVIEWING', 'RESOLVED', 'REJECTED');
+exception
+  when duplicate_object then null;
+end $$;
+
+do $$
+begin
+  create type notification_type as enum ('OVERSTAY_WARNING');
+exception
+  when duplicate_object then null;
+end $$;
+
 create table if not exists public.users (
   id uuid primary key default gen_random_uuid(),
   full_name text not null,
@@ -118,6 +132,8 @@ create table if not exists public.bookings (
   car_number text not null,
   selected_duration text not null,
   selected_price numeric(10, 2) not null check (selected_price >= 0),
+  booking_start_time timestamptz,
+  booking_end_time timestamptz,
   payment_status payment_status not null default 'PENDING',
   booking_status booking_status not null default 'ACTIVE',
   exact_location_unlocked boolean not null default false,
@@ -127,12 +143,53 @@ create table if not exists public.bookings (
   updated_at timestamptz not null default now()
 );
 
+alter table public.bookings
+  add column if not exists booking_start_time timestamptz,
+  add column if not exists booking_end_time timestamptz;
+
+create table if not exists public.issue_reports (
+  id uuid primary key default gen_random_uuid(),
+  booking_id uuid not null references public.bookings(id) on delete cascade,
+  listing_id uuid not null references public.parking_listings(id) on delete cascade,
+  owner_id uuid not null references public.users(id) on delete cascade,
+  seeker_id uuid not null references public.seeker_profiles(id) on delete cascade,
+  issue_type text not null,
+  message text not null default '',
+  status issue_report_status not null default 'PENDING',
+  owner_name text not null,
+  owner_contact text not null,
+  seeker_name text not null,
+  seeker_contact text not null,
+  car_model text not null,
+  car_number text not null,
+  listing_address text not null,
+  booking_start_time timestamptz,
+  booking_end_time timestamptz,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+create table if not exists public.notifications (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references public.users(id) on delete cascade,
+  booking_id uuid not null references public.bookings(id) on delete cascade,
+  type notification_type not null,
+  title text not null,
+  message text not null,
+  is_read boolean not null default false,
+  created_at timestamptz not null default now()
+);
+
 create index if not exists users_email_idx on public.users(email);
 create index if not exists parking_listings_owner_idx on public.parking_listings(owner_id);
 create index if not exists parking_listings_search_idx on public.parking_listings(listing_status, availability_status);
 create index if not exists bookings_owner_idx on public.bookings(owner_id);
 create index if not exists bookings_seeker_idx on public.bookings(seeker_id);
 create index if not exists bookings_listing_idx on public.bookings(parking_listing_id);
+create index if not exists bookings_expiry_idx on public.bookings(booking_status, booking_end_time);
+create index if not exists issue_reports_status_idx on public.issue_reports(status);
+create index if not exists issue_reports_booking_idx on public.issue_reports(booking_id);
+create index if not exists notifications_user_idx on public.notifications(user_id, is_read);
 
 create or replace function public.set_updated_at()
 returns trigger
@@ -164,10 +221,17 @@ create trigger set_bookings_updated_at
 before update on public.bookings
 for each row execute function public.set_updated_at();
 
+drop trigger if exists set_issue_reports_updated_at on public.issue_reports;
+create trigger set_issue_reports_updated_at
+before update on public.issue_reports
+for each row execute function public.set_updated_at();
+
 alter table public.users enable row level security;
 alter table public.parking_listings enable row level security;
 alter table public.seeker_profiles enable row level security;
 alter table public.bookings enable row level security;
+alter table public.issue_reports enable row level security;
+alter table public.notifications enable row level security;
 
 insert into storage.buckets (id, name, public)
 values ('parking-images', 'parking-images', true)

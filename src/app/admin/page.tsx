@@ -4,13 +4,21 @@ import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { StatusBadge } from "@/components/StatusBadge";
 import { money } from "@/lib/format";
-import type { Booking, ParkingListing, SafeUser, SeekerProfile } from "@/lib/types";
+import type {
+  Booking,
+  IssueReport,
+  IssueReportStatus,
+  ParkingListing,
+  SafeUser,
+  SeekerProfile,
+} from "@/lib/types";
 
 type AdminOverview = {
   users: SafeUser[];
   listings: ParkingListing[];
   bookings: Booking[];
   seekerProfiles: SeekerProfile[];
+  issueReports: IssueReport[];
 };
 
 function AdminStat({ label, value }: { label: string; value: number }) {
@@ -20,6 +28,17 @@ function AdminStat({ label, value }: { label: string; value: number }) {
       <p className="mt-1 text-sm font-bold text-[#6b7772]">{label}</p>
     </div>
   );
+}
+
+function formatDateTime(value: string | null) {
+  if (!value) {
+    return "Not recorded";
+  }
+
+  return new Intl.DateTimeFormat("en-IN", {
+    dateStyle: "medium",
+    timeStyle: "short",
+  }).format(new Date(value));
 }
 
 export default function AdminPage() {
@@ -90,6 +109,15 @@ export default function AdminPage() {
     }
 
     await fetch(`/api/listings/${id}`, { method: "DELETE" });
+    await load();
+  }
+
+  async function updateReportStatus(id: string, status: IssueReportStatus) {
+    await fetch(`/api/issue-reports/${id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ status }),
+    });
     await load();
   }
 
@@ -206,6 +234,62 @@ export default function AdminPage() {
                   </article>
                 );
               })}
+            </div>
+          </section>
+
+          <section className="mt-8">
+            <h2 className="text-xl font-black">Issue Reports</h2>
+            <div className="mt-4 grid gap-3">
+              {overview.issueReports.length === 0 && (
+                <div className="card p-5 text-sm font-bold text-[#6b7772]">
+                  No issue reports yet.
+                </div>
+              )}
+              {overview.issueReports.map((report) => (
+                <article className="card grid gap-4 p-4" key={report.id}>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <StatusBadge value={report.status} />
+                    <span className="text-sm font-black text-[#14231f]">{report.issueType}</span>
+                  </div>
+                  <div className="grid gap-3 text-sm font-bold text-[#6b7772] sm:grid-cols-2">
+                    <p>Owner: {report.ownerName} - {report.ownerContact}</p>
+                    <p>Seeker: {report.seekerName} - {report.seekerContact}</p>
+                    <p>Car: {report.carModel} - {report.carNumber}</p>
+                    <p>Listing: {report.listingAddress}</p>
+                    <p>Booking start: {formatDateTime(report.bookingStartTime)}</p>
+                    <p>Booking end: {formatDateTime(report.bookingEndTime)}</p>
+                    <p>Created: {formatDateTime(report.createdAt)}</p>
+                  </div>
+                  {report.message && (
+                    <p className="rounded-lg bg-[#f8fbfa] p-3 text-sm font-bold text-[#40514b]">
+                      {report.message}
+                    </p>
+                  )}
+                  <div className="flex flex-wrap gap-2">
+                    <button
+                      className="btn-ghost min-h-10 px-3 text-sm"
+                      type="button"
+                      onClick={() => updateReportStatus(report.id, "REVIEWING")}
+                    >
+                      Mark Reviewing
+                    </button>
+                    <button
+                      className="btn-ghost min-h-10 px-3 text-sm"
+                      type="button"
+                      onClick={() => updateReportStatus(report.id, "RESOLVED")}
+                    >
+                      Mark Resolved
+                    </button>
+                    <button
+                      className="btn-danger min-h-10 px-3 text-sm"
+                      type="button"
+                      onClick={() => updateReportStatus(report.id, "REJECTED")}
+                    >
+                      Mark Rejected
+                    </button>
+                  </div>
+                </article>
+              ))}
             </div>
           </section>
         </>

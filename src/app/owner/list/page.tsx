@@ -24,7 +24,7 @@ function OwnerListingForm({ user }: { user: SafeUser }) {
   const [parkingDirections, setParkingDirections] = useState("");
   const [priceOneHour, setPriceOneHour] = useState("");
   const [priceTwentyFourHours, setPriceTwentyFourHours] = useState("");
-  const [customDurationLabel, setCustomDurationLabel] = useState("Weekend");
+  const [customDurationLabel, setCustomDurationLabel] = useState("");
   const [customDurationPrice, setCustomDurationPrice] = useState("");
   const [availability, setAvailability] = useState(() =>
     normalizeAvailabilityFields({ availabilityType: "ALWAYS" }),

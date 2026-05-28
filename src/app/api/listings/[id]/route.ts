@@ -10,6 +10,7 @@ import {
   normalizeAvailabilityFields,
   validateAvailabilitySchedule,
 } from "@/lib/availability";
+import { expireCompletedBookings } from "@/lib/bookingExpiry";
 import { requireContactNumber } from "@/lib/contactNumber";
 import { estimateMinutes, haversineKm } from "@/lib/distance";
 import { toPublicListing } from "@/lib/format";
@@ -35,6 +36,8 @@ const availabilityFieldKeys = [
 ] as const;
 
 export async function GET(request: NextRequest, context: RouteContext) {
+  await expireCompletedBookings();
+
   const { id } = await context.params;
   const listing = await db.listings.findById(id);
 

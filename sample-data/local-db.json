@@ -109,6 +109,8 @@
       "carNumber": "KA 01 AB 1234",
       "selectedDuration": "Night stay",
       "selectedPrice": 450,
+      "bookingStartTime": "2026-05-23T00:00:00.000Z",
+      "bookingEndTime": "2026-05-23T02:00:00.000Z",
       "paymentStatus": "PAID",
       "bookingStatus": "ACTIVE",
       "exactLocationUnlocked": true,
@@ -117,5 +119,7 @@
       "createdAt": "2026-05-23T00:00:00.000Z",
       "updatedAt": "2026-05-23T00:00:00.000Z"
     }
-  ]
+  ],
+  "issueReports": [],
+  "notifications": []
 }

@@ -27,6 +27,22 @@ export type PaymentStatus = (typeof PAYMENT_STATUSES)[number];
 export const BOOKING_STATUSES = ["ACTIVE", "COMPLETED", "CANCELLED"] as const;
 export type BookingStatus = (typeof BOOKING_STATUSES)[number];
 
+export const ISSUE_TYPES = [
+  "Seeker did not remove car on time",
+  "Wrong car parked",
+  "Car caused damage",
+  "Rule violation",
+  "Payment or booking issue",
+  "Other",
+] as const;
+export type IssueType = (typeof ISSUE_TYPES)[number];
+
+export const ISSUE_REPORT_STATUSES = ["PENDING", "REVIEWING", "RESOLVED", "REJECTED"] as const;
+export type IssueReportStatus = (typeof ISSUE_REPORT_STATUSES)[number];
+
+export const NOTIFICATION_TYPES = ["OVERSTAY_WARNING"] as const;
+export type NotificationType = (typeof NOTIFICATION_TYPES)[number];
+
 export type User = {
   id: string;
   fullName: string;
@@ -95,6 +111,8 @@ export type Booking = {
   carNumber: string;
   selectedDuration: string;
   selectedPrice: number;
+  bookingStartTime: string | null;
+  bookingEndTime: string | null;
   paymentStatus: PaymentStatus;
   bookingStatus: BookingStatus;
   exactLocationUnlocked: boolean;
@@ -102,6 +120,39 @@ export type Booking = {
   razorpayPaymentId: string | null;
   createdAt: string;
   updatedAt: string;
+};
+
+export type IssueReport = {
+  id: string;
+  bookingId: string;
+  listingId: string;
+  ownerId: string;
+  seekerId: string;
+  issueType: IssueType;
+  message: string;
+  status: IssueReportStatus;
+  ownerName: string;
+  ownerContact: string;
+  seekerName: string;
+  seekerContact: string;
+  carModel: string;
+  carNumber: string;
+  listingAddress: string;
+  bookingStartTime: string | null;
+  bookingEndTime: string | null;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type Notification = {
+  id: string;
+  userId: string;
+  bookingId: string;
+  type: NotificationType;
+  title: string;
+  message: string;
+  isRead: boolean;
+  createdAt: string;
 };
 
 export type PublicListing = {
@@ -137,4 +188,6 @@ export type LocalDatabase = {
   parkingListings: ParkingListing[];
   seekerProfiles: SeekerProfile[];
   bookings: Booking[];
+  issueReports: IssueReport[];
+  notifications: Notification[];
 };
