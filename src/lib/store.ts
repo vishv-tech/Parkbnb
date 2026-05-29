@@ -25,6 +25,46 @@ const initialDatabase: LocalDatabase = {
 
 const localDatabasePath = path.join(process.cwd(), ".data", "park2bnb.json");
 
+function getSupabaseConfig() {
+  return {
+    url: (process.env.SUPABASE_URL || "").trim(),
+    key: (process.env.SUPABASE_SERVICE_ROLE_KEY || "").trim(),
+  };
+}
+
+function isSupabasePlaceholder(url: string, key: string) {
+  return url.includes("your-project") || key.includes("your-service-role-key");
+}
+
+function getSupabaseBaseUrl() {
+  const { url } = getSupabaseConfig();
+  const trimmedUrl = url.replace(/\/+$/, "");
+
+  let parsedUrl: URL;
+
+  try {
+    parsedUrl = new URL(trimmedUrl);
+  } catch {
+    throw new Error("SUPABASE_URL must be a valid URL like https://PROJECT_REF.supabase.co");
+  }
+
+  if (parsedUrl.protocol !== "https:" || !/^[a-z0-9-]+\.supabase\.co$/i.test(parsedUrl.hostname)) {
+    throw new Error("SUPABASE_URL must look like https://PROJECT_REF.supabase.co");
+  }
+
+  if ((parsedUrl.pathname && parsedUrl.pathname !== "/") || parsedUrl.search || parsedUrl.hash) {
+    throw new Error(
+      "SUPABASE_URL should be only your project URL, like https://PROJECT_REF.supabase.co. Remove extra paths such as /rest/v1, /dashboard, or /project.",
+    );
+  }
+
+  return `${parsedUrl.protocol}//${parsedUrl.host}`;
+}
+
+function getSupabaseServiceRoleKey() {
+  return getSupabaseConfig().key;
+}
+
 const userMap: ColumnMap<User> = {
   id: "id",
   fullName: "full_name",
@@ -136,18 +176,18 @@ const notificationMap: ColumnMap<Notification> = {
 };
 
 function hasSupabase() {
-  const url = process.env.SUPABASE_URL || "";
-  const key = process.env.SUPABASE_SERVICE_ROLE_KEY || "";
-  return Boolean(
-    url &&
-      key &&
-      !url.includes("your-project") &&
-      !key.includes("your-service-role-key"),
-  );
+  const { url, key } = getSupabaseConfig();
+
+  if (!url || !key || isSupabasePlaceholder(url, key)) {
+    return false;
+  }
+
+  getSupabaseBaseUrl();
+  return true;
 }
 
 function serviceHeaders(extraHeaders?: HeadersInit) {
-  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY ?? "";
+  const serviceKey = getSupabaseServiceRoleKey();
   const headers = new Headers(extraHeaders);
 
   headers.set("apikey", serviceKey);
@@ -161,11 +201,7 @@ function serviceHeaders(extraHeaders?: HeadersInit) {
 }
 
 async function supabaseFetch<T>(pathName: string, init?: RequestInit) {
-  const baseUrl = process.env.SUPABASE_URL;
-
-  if (!baseUrl) {
-    throw new Error("SUPABASE_URL is not configured");
-  }
+  const baseUrl = getSupabaseBaseUrl();
 
   const response = await fetch(`${baseUrl}/rest/v1/${pathName}`, {
     ...init,
