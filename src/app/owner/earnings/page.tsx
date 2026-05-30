@@ -95,7 +95,7 @@ function OwnerEarningsContent() {
             <p>Current month: {monthName(earning.month, earning.year)}</p>
             <p>Paid bookings this month: {earning.paidBookingCount}</p>
             <p>Total gross booking amount (parking price): {rupees(earning.grossBookingAmount)}</p>
-            <p>Platform fee collected by Park2bnb: {rupees(earning.platformFeeAmount)}</p>
+            <p>Platform fee collected by Parkbnb: {rupees(earning.platformFeeAmount)}</p>
             <p>Seeker total paid: {rupees(earning.grossBookingAmount + earning.platformFeeAmount)}</p>
             <p>Final owner earning: {rupees(earning.totalEarning)}</p>
             <p>UPI ID: {earning.upiId || "Not provided"}</p>

@@ -17,7 +17,7 @@ export default function PublicPagesLayout({ children }: Readonly<{ children: Rea
       {children}
       <footer className="border-t border-[#dbe3df] bg-white">
         <div className="app-shell flex flex-col gap-4 py-6 md:flex-row md:items-center md:justify-between">
-          <p className="text-sm font-black text-[#11312c]">Park2bnb</p>
+          <p className="text-sm font-black text-[#11312c]">Parkbnb</p>
           <nav className="flex flex-wrap gap-x-4 gap-y-2 text-sm font-bold text-[#40514b]">
             {footerLinks.map((link) => (
               <Link className="hover:text-[#11312c]" href={link.href} key={link.href}>

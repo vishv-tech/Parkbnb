@@ -1,6 +1,6 @@
-# Park2bnb
+# Parkbnb
 
-Park2bnb is an MVP for an "Airbnb for Car Parking" marketplace. Owners can list empty parking spots, seekers can find nearby vacant spots, book a duration, pay through Razorpay or the mock payment fallback, and unlock the exact location only after payment.
+Parkbnb is an MVP for an "Airbnb for Car Parking" marketplace. Owners can list empty parking spots, seekers can find nearby vacant spots, book a duration, pay through Razorpay or the mock payment fallback, and unlock the exact location only after payment.
 
 ## Tech Stack
 

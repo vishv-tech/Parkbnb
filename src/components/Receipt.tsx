@@ -13,7 +13,7 @@ export function Receipt({ booking, listing }: ReceiptProps) {
       <div className="mx-auto mt-5 grid h-12 w-12 place-items-center rounded-lg bg-[#e9f7f2] text-2xl font-black text-[#11312c]">
         P
       </div>
-      <h2 className="mt-4 text-3xl font-black text-[#1f2b3f]">Park2bnb</h2>
+      <h2 className="mt-4 text-3xl font-black text-[#1f2b3f]">Parkbnb</h2>
 
       <div className="mt-5 space-y-1 border-b border-t border-[#edf1ef] py-5 text-left text-sm text-[#6b7772]">
         <p>Name - {booking.seekerName}</p>

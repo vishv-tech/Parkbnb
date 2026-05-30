@@ -2,15 +2,15 @@ import type { Metadata } from "next";
 import { BulletList, InfoCard, PublicPageShell } from "../_components/PublicPageShell";
 
 export const metadata: Metadata = {
-  title: "How Park2bnb Works",
+  title: "How Parkbnb Works",
 };
 
 export default function HowItWorksPage() {
   return (
     <PublicPageShell
       eyebrow="How it works"
-      title="How Park2bnb Works"
-      intro="Park2bnb gives owners a way to list usable parking space and gives drivers a guided flow to find, book, and reach nearby parking."
+      title="How Parkbnb Works"
+      intro="Parkbnb gives owners a way to list usable parking space and gives drivers a guided flow to find, book, and reach nearby parking."
     >
       <div className="grid gap-5 lg:grid-cols-2">
         <InfoCard title="For Parking Owners">

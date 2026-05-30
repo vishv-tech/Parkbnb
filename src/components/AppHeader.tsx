@@ -88,7 +88,7 @@ export function AppHeader() {
           <span className="grid h-9 w-9 place-items-center rounded-lg bg-[#11312c] text-white">
             P
           </span>
-          <span>Park2bnb</span>
+          <span>Parkbnb</span>
         </Link>
 
         <nav className="flex w-full flex-wrap items-center gap-2 text-sm font-bold sm:w-auto sm:justify-end">

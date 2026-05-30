@@ -10,7 +10,7 @@ export default function PrivacyPolicyPage() {
     <PublicPageShell
       eyebrow="Legal"
       title="Privacy Policy"
-      intro="This Privacy Policy explains the basic information Park2bnb collects and uses for account creation, parking listings, bookings, payments, and support."
+      intro="This Privacy Policy explains the basic information Parkbnb collects and uses for account creation, parking listings, bookings, payments, and support."
     >
       <InfoCard title="Data we collect">
         <BulletList
@@ -53,7 +53,7 @@ export default function PrivacyPolicyPage() {
 
       <InfoCard title="Payments and location">
         <p>
-          Payment details are processed through the payment provider. Park2bnb should not store card
+          Payment details are processed through the payment provider. Parkbnb should not store card
           passwords, bank passwords, or similar payment credentials.
         </p>
         <p>
@@ -63,8 +63,8 @@ export default function PrivacyPolicyPage() {
       </InfoCard>
 
       <InfoCard title="User responsibility and contact">
-        <p>Users should provide accurate and current information while using Park2bnb.</p>
-        <p>For privacy questions, contact support@park2bnb.com.</p>
+        <p>Users should provide accurate and current information while using Parkbnb.</p>
+        <p>For privacy questions, contact support@parkbnb.com.</p>
         <p className="rounded-lg bg-[#fff5ef] p-4 font-bold text-[#8d3b24]">
           This is a draft policy for MVP/testing and should be legally reviewed before public launch.
         </p>

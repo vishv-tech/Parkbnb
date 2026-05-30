@@ -70,7 +70,7 @@ function SignupForm() {
   return (
     <form className="card grid gap-4 p-5 sm:p-7" onSubmit={submit}>
       <div>
-        <p className="text-sm font-black uppercase tracking-[0.18em] text-[#28a58b]">Join Park2bnb</p>
+        <p className="text-sm font-black uppercase tracking-[0.18em] text-[#28a58b]">Join Parkbnb</p>
         <h1 className="mt-2 text-3xl font-black">Create your account</h1>
       </div>
 

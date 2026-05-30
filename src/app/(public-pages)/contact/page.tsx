@@ -6,7 +6,7 @@ export const metadata: Metadata = {
 };
 
 const contacts = [
-  { label: "Email", value: "support@park2bnb.com" },
+  { label: "Email", value: "support@parkbnb.com" },
   { label: "Instagram", value: "Coming soon" },
   { label: "LinkedIn", value: "Coming soon" },
   { label: "X/Twitter", value: "Coming soon" },
@@ -20,7 +20,7 @@ export default function ContactPage() {
       title="Contact & Socials"
       intro="For support, partnership, owner payout questions, booking issues, or reports, contact us."
     >
-      <InfoCard title="Reach Park2bnb">
+      <InfoCard title="Reach Parkbnb">
         <div className="grid gap-3 sm:grid-cols-2">
           {contacts.map((contact) => (
             <div className="rounded-lg border border-[#dbe3df] bg-[#f6f7f9] p-4" key={contact.label}>

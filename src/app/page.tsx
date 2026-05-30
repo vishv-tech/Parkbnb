@@ -6,7 +6,7 @@ export default function Home() {
       <section className="bg-[#11312c] text-white">
         <div className="app-shell grid min-h-[calc(100svh-64px)] items-center gap-10 py-10 lg:grid-cols-[1fr_0.9fr]">
           <div className="max-w-2xl">
-            <p className="text-sm font-black uppercase tracking-[0.22em] text-[#9be0d0]">Park2bnb</p>
+            <p className="text-sm font-black uppercase tracking-[0.22em] text-[#9be0d0]">Parkbnb</p>
             <h1 className="mt-4 text-4xl font-black leading-tight sm:text-6xl">
               Find or List Parking Near You
             </h1>

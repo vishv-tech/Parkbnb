@@ -154,7 +154,7 @@ function PaymentContent() {
       key,
       amount: orderData.order.amount,
       currency: orderData.order.currency,
-      name: "Park2bnb",
+      name: "Parkbnb",
       description: `${booking.selectedDuration} parking booking`,
       order_id: orderData.order.id,
       handler: (response) => {

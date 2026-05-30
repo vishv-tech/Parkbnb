@@ -10,7 +10,7 @@ export default function PaymentPolicyPage() {
     <PublicPageShell
       eyebrow="Payments"
       title="Payment Policy"
-      intro="This policy explains how seeker payments, platform fees, owner earnings, and monthly owner payouts work in the Park2bnb MVP."
+      intro="This policy explains how seeker payments, platform fees, owner earnings, and monthly owner payouts work in the Parkbnb MVP."
     >
       <InfoCard title="Payment calculation">
         <BulletList

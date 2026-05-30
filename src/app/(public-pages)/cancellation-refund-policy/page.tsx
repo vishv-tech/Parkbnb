@@ -10,7 +10,7 @@ export default function CancellationRefundPolicyPage() {
     <PublicPageShell
       eyebrow="Bookings"
       title="Cancellation & Refund Policy"
-      intro="These are basic MVP cancellation and refund rules for Park2bnb bookings."
+      intro="These are basic MVP cancellation and refund rules for Parkbnb bookings."
     >
       <InfoCard title="MVP rules">
         <BulletList
@@ -23,7 +23,7 @@ export default function CancellationRefundPolicyPage() {
             "Issue reports may affect refund or fine decisions.",
           ]}
         />
-        <p>For cancellation or refund support, contact support@park2bnb.com.</p>
+        <p>For cancellation or refund support, contact support@parkbnb.com.</p>
       </InfoCard>
     </PublicPageShell>
   );

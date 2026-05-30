@@ -4,7 +4,7 @@ import { AppHeader } from "@/components/AppHeader";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Park2bnb",
+  title: "Parkbnb",
   description: "Find and book nearby parking, or list your empty parking spot.",
 };
 
