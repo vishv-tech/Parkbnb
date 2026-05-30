@@ -5,6 +5,7 @@ insert into public.users (
   contact_number,
   password_hash,
   user_type,
+  upi_id,
   is_blocked,
   created_at,
   updated_at
@@ -17,6 +18,7 @@ values
   '9876543210',
   'scrypt:ownerseed2026abcd:73d9d89026210a2b47c3aa8c1b40fb1f701ce99ed1f5fe74c42fa74bc445c65a287da4ff8b9a003cdafaa84c4c9804c0364f81ea294d8bed40405fc651c0597e',
   'OWNER',
+  'owner@upi',
   false,
   now(),
   now()
@@ -28,6 +30,7 @@ values
   '9876501234',
   'scrypt:seekerseed2026abc:ffa7b7fa957c6699bff36b04e255e61049232d5704cf5925c0d0b7c8db49fd5d998f55605d0cb34ed1918b19452a9b8588c09004f30ae3d1123ce4ea257932a9',
   'SEEKER',
+  null,
   false,
   now(),
   now()
@@ -38,6 +41,7 @@ on conflict (id) do update set
   contact_number = excluded.contact_number,
   password_hash = excluded.password_hash,
   user_type = excluded.user_type,
+  upi_id = excluded.upi_id,
   is_blocked = excluded.is_blocked,
   updated_at = now();
 
@@ -199,6 +203,8 @@ insert into public.bookings (
   car_number,
   selected_duration,
   selected_price,
+  platform_fee_amount,
+  total_amount,
   booking_start_time,
   booking_end_time,
   payment_status,
@@ -220,6 +226,8 @@ values (
   'KA 01 AB 1234',
   'Night stay',
   450,
+  23,
+  473,
   now(),
   now() + interval '2 hours',
   'PAID',
@@ -233,6 +241,8 @@ values (
 on conflict (id) do update set
   selected_duration = excluded.selected_duration,
   selected_price = excluded.selected_price,
+  platform_fee_amount = excluded.platform_fee_amount,
+  total_amount = excluded.total_amount,
   booking_start_time = excluded.booking_start_time,
   booking_end_time = excluded.booking_end_time,
   payment_status = excluded.payment_status,

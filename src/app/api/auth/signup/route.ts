@@ -7,6 +7,7 @@ import { hashPassword } from "@/lib/password";
 import { setUserSession } from "@/lib/session";
 import { db } from "@/lib/store";
 import type { User, UserType } from "@/lib/types";
+import { requireUpiId } from "@/lib/upi";
 
 export const runtime = "nodejs";
 
@@ -27,6 +28,7 @@ export async function POST(request: NextRequest) {
       return apiError("Password must be at least 6 characters", 400);
     }
 
+    const upiId = userType === "OWNER" ? requireUpiId(body.upiId) : null;
     const existing = await db.users.findByEmail(email);
 
     if (existing) {
@@ -41,6 +43,7 @@ export async function POST(request: NextRequest) {
       contactNumber,
       passwordHash: hashPassword(password),
       userType,
+      upiId,
       isBlocked: false,
       createdAt: now,
       updatedAt: now,

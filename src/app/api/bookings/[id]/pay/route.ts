@@ -2,6 +2,7 @@ import { createHmac, timingSafeEqual } from "crypto";
 import { NextRequest } from "next/server";
 import { apiError, apiOk, parseJson } from "@/lib/api";
 import { calculateBookingWindow, expireCompletedBookings } from "@/lib/bookingExpiry";
+import { calculatePlatformFeeAmount, calculateTotalAmount } from "@/lib/platformFee";
 import { getSessionUser } from "@/lib/session";
 import { db } from "@/lib/store";
 
@@ -83,8 +84,12 @@ export async function POST(request: NextRequest, context: RouteContext) {
     booking.bookingStartTime && booking.bookingEndTime
       ? {}
       : calculateBookingWindow(booking.selectedDuration);
+  const platformFeeAmount = calculatePlatformFeeAmount(booking.selectedPrice);
+  const totalAmount = calculateTotalAmount(booking.selectedPrice);
   const paidBooking = await db.bookings.update(booking.id, {
     paymentStatus: "PAID",
+    platformFeeAmount,
+    totalAmount,
     exactLocationUnlocked: true,
     razorpayOrderId: nextOrderId || null,
     razorpayPaymentId: nextPaymentId,

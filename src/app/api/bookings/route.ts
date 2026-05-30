@@ -9,6 +9,7 @@ import {
 } from "@/lib/availability";
 import { calculateBookingWindow, expireCompletedBookings } from "@/lib/bookingExpiry";
 import { listingDurationOptions, nowIso, toPublicListing } from "@/lib/format";
+import { calculatePlatformFeeAmount, calculateTotalAmount } from "@/lib/platformFee";
 import { getSessionUser } from "@/lib/session";
 import { db } from "@/lib/store";
 import type { Booking, BookingWithListing } from "@/lib/types";
@@ -144,6 +145,8 @@ export async function POST(request: NextRequest) {
 
     const now = nowIso();
     const bookingWindow = calculateBookingWindow(finalDuration, new Date(now));
+    const platformFeeAmount = calculatePlatformFeeAmount(finalPrice);
+    const totalAmount = calculateTotalAmount(finalPrice);
     const booking: Booking = {
       id: randomUUID(),
       seekerId: profile.id,
@@ -155,6 +158,8 @@ export async function POST(request: NextRequest) {
       carNumber: profile.carNumber,
       selectedDuration: finalDuration,
       selectedPrice: finalPrice,
+      platformFeeAmount,
+      totalAmount,
       bookingStartTime: bookingWindow.bookingStartTime,
       bookingEndTime: bookingWindow.bookingEndTime,
       paymentStatus: "PENDING",

@@ -43,6 +43,9 @@ export type IssueReportStatus = (typeof ISSUE_REPORT_STATUSES)[number];
 export const NOTIFICATION_TYPES = ["OVERSTAY_WARNING"] as const;
 export type NotificationType = (typeof NOTIFICATION_TYPES)[number];
 
+export const PAYOUT_STATUSES = ["PENDING", "PAID"] as const;
+export type PayoutStatus = (typeof PAYOUT_STATUSES)[number];
+
 export type User = {
   id: string;
   fullName: string;
@@ -50,6 +53,7 @@ export type User = {
   contactNumber: string;
   passwordHash: string;
   userType: UserType;
+  upiId: string | null;
   isBlocked: boolean;
   createdAt: string;
   updatedAt: string;
@@ -111,6 +115,8 @@ export type Booking = {
   carNumber: string;
   selectedDuration: string;
   selectedPrice: number;
+  platformFeeAmount: number;
+  totalAmount: number;
   bookingStartTime: string | null;
   bookingEndTime: string | null;
   paymentStatus: PaymentStatus;
@@ -155,6 +161,21 @@ export type Notification = {
   createdAt: string;
 };
 
+export type OwnerMonthlyEarning = {
+  id: string;
+  ownerId: string;
+  month: number;
+  year: number;
+  totalEarning: number;
+  grossBookingAmount: number;
+  platformFeeAmount: number;
+  paidBookingCount: number;
+  upiId: string | null;
+  payoutStatus: PayoutStatus;
+  createdAt: string;
+  updatedAt: string;
+};
+
 export type PublicListing = {
   id: string;
   ownerFullName: string;
@@ -190,4 +211,5 @@ export type LocalDatabase = {
   bookings: Booking[];
   issueReports: IssueReport[];
   notifications: Notification[];
+  ownerMonthlyEarnings: OwnerMonthlyEarning[];
 };

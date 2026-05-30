@@ -1,6 +1,7 @@
 import { NextRequest } from "next/server";
 import { apiError, apiOk } from "@/lib/api";
 import { expireCompletedBookings } from "@/lib/bookingExpiry";
+import { syncAllCurrentMonthOwnerEarnings } from "@/lib/earnings";
 import { toSafeUser } from "@/lib/format";
 import { getAdminSession } from "@/lib/session";
 import { db } from "@/lib/store";
@@ -16,12 +17,15 @@ export async function GET(request: NextRequest) {
     return apiError("Admin login required", 401);
   }
 
-  const [users, listings, bookings, seekerProfiles, issueReports] = await Promise.all([
+  await syncAllCurrentMonthOwnerEarnings();
+
+  const [users, listings, bookings, seekerProfiles, issueReports, ownerMonthlyEarnings] = await Promise.all([
     db.users.list(),
     db.listings.listAll(),
     db.bookings.listAll(),
     db.seekerProfiles.listAll(),
     db.issueReports.listAll(),
+    db.ownerMonthlyEarnings.listAll(),
   ]);
 
   return apiOk({
@@ -30,5 +34,6 @@ export async function GET(request: NextRequest) {
     bookings,
     seekerProfiles,
     issueReports,
+    ownerMonthlyEarnings,
   });
 }

@@ -56,6 +56,13 @@ exception
   when duplicate_object then null;
 end $$;
 
+do $$
+begin
+  create type payout_status as enum ('PENDING', 'PAID');
+exception
+  when duplicate_object then null;
+end $$;
+
 create table if not exists public.users (
   id uuid primary key default gen_random_uuid(),
   full_name text not null,
@@ -63,10 +70,14 @@ create table if not exists public.users (
   contact_number text not null,
   password_hash text not null,
   user_type user_type not null,
+  upi_id text,
   is_blocked boolean not null default false,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
+
+alter table public.users
+  add column if not exists upi_id text;
 
 create table if not exists public.parking_listings (
   id uuid primary key default gen_random_uuid(),
@@ -132,6 +143,8 @@ create table if not exists public.bookings (
   car_number text not null,
   selected_duration text not null,
   selected_price numeric(10, 2) not null check (selected_price >= 0),
+  platform_fee_amount numeric(10, 2) not null default 0 check (platform_fee_amount >= 0),
+  total_amount numeric(10, 2) not null default 0 check (total_amount >= 0),
   booking_start_time timestamptz,
   booking_end_time timestamptz,
   payment_status payment_status not null default 'PENDING',
@@ -144,6 +157,8 @@ create table if not exists public.bookings (
 );
 
 alter table public.bookings
+  add column if not exists platform_fee_amount numeric(10, 2) not null default 0 check (platform_fee_amount >= 0),
+  add column if not exists total_amount numeric(10, 2) not null default 0 check (total_amount >= 0),
   add column if not exists booking_start_time timestamptz,
   add column if not exists booking_end_time timestamptz;
 
@@ -180,6 +195,22 @@ create table if not exists public.notifications (
   created_at timestamptz not null default now()
 );
 
+create table if not exists public.owner_monthly_earnings (
+  id uuid primary key default gen_random_uuid(),
+  owner_id uuid not null references public.users(id) on delete cascade,
+  month integer not null check (month between 1 and 12),
+  year integer not null check (year >= 2000),
+  total_earning numeric(10, 2) not null default 0 check (total_earning >= 0),
+  gross_booking_amount numeric(10, 2) not null default 0 check (gross_booking_amount >= 0),
+  platform_fee_amount numeric(10, 2) not null default 0 check (platform_fee_amount >= 0),
+  paid_booking_count integer not null default 0 check (paid_booking_count >= 0),
+  upi_id text,
+  payout_status payout_status not null default 'PENDING',
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  unique (owner_id, month, year)
+);
+
 create index if not exists users_email_idx on public.users(email);
 create index if not exists parking_listings_owner_idx on public.parking_listings(owner_id);
 create index if not exists parking_listings_search_idx on public.parking_listings(listing_status, availability_status);
@@ -190,6 +221,8 @@ create index if not exists bookings_expiry_idx on public.bookings(booking_status
 create index if not exists issue_reports_status_idx on public.issue_reports(status);
 create index if not exists issue_reports_booking_idx on public.issue_reports(booking_id);
 create index if not exists notifications_user_idx on public.notifications(user_id, is_read);
+create index if not exists owner_monthly_earnings_owner_idx on public.owner_monthly_earnings(owner_id, year, month);
+create index if not exists owner_monthly_earnings_payout_idx on public.owner_monthly_earnings(payout_status);
 
 create or replace function public.set_updated_at()
 returns trigger
@@ -226,12 +259,18 @@ create trigger set_issue_reports_updated_at
 before update on public.issue_reports
 for each row execute function public.set_updated_at();
 
+drop trigger if exists set_owner_monthly_earnings_updated_at on public.owner_monthly_earnings;
+create trigger set_owner_monthly_earnings_updated_at
+before update on public.owner_monthly_earnings
+for each row execute function public.set_updated_at();
+
 alter table public.users enable row level security;
 alter table public.parking_listings enable row level security;
 alter table public.seeker_profiles enable row level security;
 alter table public.bookings enable row level security;
 alter table public.issue_reports enable row level security;
 alter table public.notifications enable row level security;
+alter table public.owner_monthly_earnings enable row level security;
 
 insert into storage.buckets (id, name, public)
 values ('parking-images', 'parking-images', true)

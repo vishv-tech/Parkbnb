@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useMemo, useState } from "react";
 import { CONTACT_NUMBER_ERROR, isValidContactNumber, sanitizeContactNumber } from "@/lib/contactNumber";
 import type { UserType } from "@/lib/types";
+import { UPI_ID_ERROR, isValidUpiId, normalizeUpiId } from "@/lib/upi";
 
 function SignupForm() {
   const router = useRouter();
@@ -17,6 +18,7 @@ function SignupForm() {
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
   const [contactNumber, setContactNumber] = useState("");
+  const [upiId, setUpiId] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
@@ -30,13 +32,25 @@ function SignupForm() {
       return;
     }
 
+    if (userType === "OWNER" && !isValidUpiId(upiId)) {
+      setError(UPI_ID_ERROR);
+      return;
+    }
+
     setLoading(true);
 
     try {
       const response = await fetch("/api/auth/signup", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ fullName, email, contactNumber, password, userType }),
+        body: JSON.stringify({
+          fullName,
+          email,
+          contactNumber,
+          upiId: userType === "OWNER" ? normalizeUpiId(upiId) : null,
+          password,
+          userType,
+        }),
       });
       const data = await response.json().catch(() => ({}));
 
@@ -105,6 +119,19 @@ function SignupForm() {
           onChange={(event) => setContactNumber(sanitizeContactNumber(event.target.value))}
         />
       </label>
+
+      {userType === "OWNER" && (
+        <label>
+          <span className="label">UPI ID</span>
+          <input
+            className="field"
+            required
+            placeholder="example@upi"
+            value={upiId}
+            onChange={(event) => setUpiId(event.target.value)}
+          />
+        </label>
+      )}
 
       <label>
         <span className="label">Password</span>

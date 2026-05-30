@@ -5,12 +5,14 @@ import type {
   IssueReport,
   LocalDatabase,
   Notification,
+  OwnerMonthlyEarning,
   ParkingListing,
   SeekerProfile,
   User,
 } from "./types";
 import { normalizeAvailabilityFields } from "./availability";
 import { nowIso } from "./format";
+import { calculatePlatformFeeAmount, calculateTotalAmount } from "./platformFee";
 
 type ColumnMap<T extends object> = Record<keyof T & string, string>;
 
@@ -21,6 +23,7 @@ const initialDatabase: LocalDatabase = {
   bookings: [],
   issueReports: [],
   notifications: [],
+  ownerMonthlyEarnings: [],
 };
 
 const localDatabasePath = path.join(process.cwd(), ".data", "park2bnb.json");
@@ -72,6 +75,7 @@ const userMap: ColumnMap<User> = {
   contactNumber: "contact_number",
   passwordHash: "password_hash",
   userType: "user_type",
+  upiId: "upi_id",
   isBlocked: "is_blocked",
   createdAt: "created_at",
   updatedAt: "updated_at",
@@ -131,6 +135,8 @@ const bookingMap: ColumnMap<Booking> = {
   carNumber: "car_number",
   selectedDuration: "selected_duration",
   selectedPrice: "selected_price",
+  platformFeeAmount: "platform_fee_amount",
+  totalAmount: "total_amount",
   bookingStartTime: "booking_start_time",
   bookingEndTime: "booking_end_time",
   paymentStatus: "payment_status",
@@ -173,6 +179,21 @@ const notificationMap: ColumnMap<Notification> = {
   message: "message",
   isRead: "is_read",
   createdAt: "created_at",
+};
+
+const ownerMonthlyEarningMap: ColumnMap<OwnerMonthlyEarning> = {
+  id: "id",
+  ownerId: "owner_id",
+  month: "month",
+  year: "year",
+  totalEarning: "total_earning",
+  grossBookingAmount: "gross_booking_amount",
+  platformFeeAmount: "platform_fee_amount",
+  paidBookingCount: "paid_booking_count",
+  upiId: "upi_id",
+  payoutStatus: "payout_status",
+  createdAt: "created_at",
+  updatedAt: "updated_at",
 };
 
 function hasSupabase() {
@@ -253,6 +274,13 @@ function eq(value: string) {
   return encodeURIComponent(value);
 }
 
+function normalizeUser(user: User) {
+  return {
+    ...user,
+    upiId: user.upiId ?? null,
+  };
+}
+
 function normalizeListing(listing: ParkingListing) {
   return {
     ...listing,
@@ -261,21 +289,43 @@ function normalizeListing(listing: ParkingListing) {
 }
 
 function normalizeBooking(booking: Booking) {
+  const selectedPrice = Number(booking.selectedPrice || 0);
+  const platformFeeAmount =
+    booking.platformFeeAmount ?? calculatePlatformFeeAmount(selectedPrice);
+
   return {
     ...booking,
+    selectedPrice,
+    platformFeeAmount,
+    totalAmount: booking.totalAmount ?? calculateTotalAmount(selectedPrice),
     bookingStartTime: booking.bookingStartTime ?? null,
     bookingEndTime: booking.bookingEndTime ?? null,
   };
 }
 
+function normalizeOwnerMonthlyEarning(earning: OwnerMonthlyEarning) {
+  return {
+    ...earning,
+    month: Number(earning.month),
+    year: Number(earning.year),
+    totalEarning: Number(earning.totalEarning || 0),
+    grossBookingAmount: Number(earning.grossBookingAmount || 0),
+    platformFeeAmount: Number(earning.platformFeeAmount || 0),
+    paidBookingCount: Number(earning.paidBookingCount || 0),
+    upiId: earning.upiId ?? null,
+    payoutStatus: earning.payoutStatus ?? "PENDING",
+  };
+}
+
 function normalizeLocalDatabase(database: Partial<LocalDatabase>): LocalDatabase {
   return {
-    users: database.users ?? [],
+    users: (database.users ?? []).map(normalizeUser),
     parkingListings: (database.parkingListings ?? []).map(normalizeListing),
     seekerProfiles: database.seekerProfiles ?? [],
     bookings: (database.bookings ?? []).map(normalizeBooking),
     issueReports: database.issueReports ?? [],
     notifications: database.notifications ?? [],
+    ownerMonthlyEarnings: (database.ownerMonthlyEarnings ?? []).map(normalizeOwnerMonthlyEarning),
   };
 }
 
@@ -307,7 +357,7 @@ export const db = {
     async list() {
       if (hasSupabase()) {
         const rows = await supabaseFetch<Record<string, unknown>[]>("users?select=*&order=created_at.desc");
-        return rows.map((row) => fromDbRow<User>(row, userMap));
+        return rows.map((row) => normalizeUser(fromDbRow<User>(row, userMap)));
       }
 
       const database = await readLocalDatabase();
@@ -319,7 +369,7 @@ export const db = {
         const rows = await supabaseFetch<Record<string, unknown>[]>(
           `users?id=eq.${eq(id)}&select=*&limit=1`,
         );
-        return rows[0] ? fromDbRow<User>(rows[0], userMap) : null;
+        return rows[0] ? normalizeUser(fromDbRow<User>(rows[0], userMap)) : null;
       }
 
       const database = await readLocalDatabase();
@@ -331,7 +381,7 @@ export const db = {
         const rows = await supabaseFetch<Record<string, unknown>[]>(
           `users?email=eq.${eq(email)}&select=*&limit=1`,
         );
-        return rows[0] ? fromDbRow<User>(rows[0], userMap) : null;
+        return rows[0] ? normalizeUser(fromDbRow<User>(rows[0], userMap)) : null;
       }
 
       const database = await readLocalDatabase();
@@ -345,7 +395,7 @@ export const db = {
           headers: { Prefer: "return=representation" },
           body: JSON.stringify(toDbRow<User>(user, userMap)),
         });
-        return fromDbRow<User>(rows[0], userMap);
+        return normalizeUser(fromDbRow<User>(rows[0], userMap));
       }
 
       const database = await readLocalDatabase();
@@ -366,7 +416,7 @@ export const db = {
             body: JSON.stringify(toDbRow<User>({ ...patch, updatedAt }, userMap)),
           },
         );
-        return rows[0] ? fromDbRow<User>(rows[0], userMap) : null;
+        return rows[0] ? normalizeUser(fromDbRow<User>(rows[0], userMap)) : null;
       }
 
       const database = await readLocalDatabase();
@@ -790,6 +840,139 @@ export const db = {
       database.notifications.push(notification);
       await writeLocalDatabase(database);
       return notification;
+    },
+  },
+
+  ownerMonthlyEarnings: {
+    async listAll() {
+      if (hasSupabase()) {
+        const rows = await supabaseFetch<Record<string, unknown>[]>(
+          "owner_monthly_earnings?select=*&order=year.desc,month.desc",
+        );
+        return rows.map((row) =>
+          normalizeOwnerMonthlyEarning(fromDbRow<OwnerMonthlyEarning>(row, ownerMonthlyEarningMap)),
+        );
+      }
+
+      const database = await readLocalDatabase();
+      return database.ownerMonthlyEarnings.sort((a, b) => {
+        if (a.year !== b.year) {
+          return b.year - a.year;
+        }
+
+        return b.month - a.month;
+      });
+    },
+
+    async listByOwner(ownerId: string) {
+      if (hasSupabase()) {
+        const rows = await supabaseFetch<Record<string, unknown>[]>(
+          `owner_monthly_earnings?owner_id=eq.${eq(ownerId)}&select=*&order=year.desc,month.desc`,
+        );
+        return rows.map((row) =>
+          normalizeOwnerMonthlyEarning(fromDbRow<OwnerMonthlyEarning>(row, ownerMonthlyEarningMap)),
+        );
+      }
+
+      const database = await readLocalDatabase();
+      return database.ownerMonthlyEarnings
+        .filter((earning) => earning.ownerId === ownerId)
+        .sort((a, b) => {
+          if (a.year !== b.year) {
+            return b.year - a.year;
+          }
+
+          return b.month - a.month;
+        });
+    },
+
+    async findByOwnerMonth(ownerId: string, month: number, year: number) {
+      if (hasSupabase()) {
+        const rows = await supabaseFetch<Record<string, unknown>[]>(
+          `owner_monthly_earnings?owner_id=eq.${eq(ownerId)}&month=eq.${month}&year=eq.${year}&select=*&limit=1`,
+        );
+        return rows[0]
+          ? normalizeOwnerMonthlyEarning(fromDbRow<OwnerMonthlyEarning>(rows[0], ownerMonthlyEarningMap))
+          : null;
+      }
+
+      const database = await readLocalDatabase();
+      return (
+        database.ownerMonthlyEarnings.find(
+          (earning) => earning.ownerId === ownerId && earning.month === month && earning.year === year,
+        ) ?? null
+      );
+    },
+
+    async upsert(earning: OwnerMonthlyEarning) {
+      const normalizedEarning = normalizeOwnerMonthlyEarning(earning);
+      const existing = await this.findByOwnerMonth(
+        normalizedEarning.ownerId,
+        normalizedEarning.month,
+        normalizedEarning.year,
+      );
+
+      if (existing) {
+        return this.update(existing.id, {
+          ...normalizedEarning,
+          id: existing.id,
+          createdAt: existing.createdAt,
+        });
+      }
+
+      if (hasSupabase()) {
+        const rows = await supabaseFetch<Record<string, unknown>[]>(
+          "owner_monthly_earnings?select=*",
+          {
+            method: "POST",
+            headers: { Prefer: "return=representation" },
+            body: JSON.stringify(toDbRow<OwnerMonthlyEarning>(normalizedEarning, ownerMonthlyEarningMap)),
+          },
+        );
+        return normalizeOwnerMonthlyEarning(fromDbRow<OwnerMonthlyEarning>(rows[0], ownerMonthlyEarningMap));
+      }
+
+      const database = await readLocalDatabase();
+      database.ownerMonthlyEarnings.push(normalizedEarning);
+      await writeLocalDatabase(database);
+      return normalizedEarning;
+    },
+
+    async update(id: string, patch: Partial<OwnerMonthlyEarning>) {
+      const updatedAt = nowIso();
+
+      if (hasSupabase()) {
+        const rows = await supabaseFetch<Record<string, unknown>[]>(
+          `owner_monthly_earnings?id=eq.${eq(id)}&select=*`,
+          {
+            method: "PATCH",
+            headers: { Prefer: "return=representation" },
+            body: JSON.stringify(toDbRow<OwnerMonthlyEarning>({ ...patch, updatedAt }, ownerMonthlyEarningMap)),
+          },
+        );
+        return rows[0]
+          ? normalizeOwnerMonthlyEarning(fromDbRow<OwnerMonthlyEarning>(rows[0], ownerMonthlyEarningMap))
+          : null;
+      }
+
+      const database = await readLocalDatabase();
+      const index = database.ownerMonthlyEarnings.findIndex((earning) => earning.id === id);
+
+      if (index === -1) {
+        return null;
+      }
+
+      database.ownerMonthlyEarnings[index] = normalizeOwnerMonthlyEarning({
+        ...database.ownerMonthlyEarnings[index],
+        ...patch,
+        updatedAt,
+      });
+      await writeLocalDatabase(database);
+      return database.ownerMonthlyEarnings[index];
+    },
+
+    async updateStatus(id: string, payoutStatus: OwnerMonthlyEarning["payoutStatus"]) {
+      return this.update(id, { payoutStatus });
     },
   },
 };

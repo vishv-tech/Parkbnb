@@ -1,5 +1,6 @@
 import { NextRequest } from "next/server";
 import { apiError, apiOk } from "@/lib/api";
+import { calculateTotalAmount } from "@/lib/platformFee";
 import { getSessionUser } from "@/lib/session";
 import { db } from "@/lib/store";
 
@@ -30,6 +31,7 @@ export async function POST(request: NextRequest, context: RouteContext) {
 
   const keyId = process.env.RAZORPAY_KEY_ID;
   const keySecret = process.env.RAZORPAY_KEY_SECRET;
+  const totalAmount = calculateTotalAmount(booking.selectedPrice);
 
   if (
     !keyId ||
@@ -40,7 +42,7 @@ export async function POST(request: NextRequest, context: RouteContext) {
     return apiOk({
       order: {
         id: `mock_${booking.id}`,
-        amount: booking.selectedPrice * 100,
+        amount: totalAmount * 100,
         currency: "INR",
       },
       mock: true,
@@ -54,7 +56,7 @@ export async function POST(request: NextRequest, context: RouteContext) {
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
-      amount: Math.round(booking.selectedPrice * 100),
+      amount: Math.round(totalAmount * 100),
       currency: "INR",
       receipt: booking.id,
       notes: { bookingId: booking.id },

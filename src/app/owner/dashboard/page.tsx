@@ -132,9 +132,14 @@ function OwnerDashboardContent() {
           <p className="text-sm font-black uppercase tracking-[0.18em] text-[#28a58b]">Owner dashboard</p>
           <h1 className="mt-2 text-3xl font-black">Your parking business</h1>
         </div>
-        <Link className="btn-primary" href="/owner/list">
-          Add Listing
-        </Link>
+        <div className="flex flex-wrap gap-2">
+          <Link className="btn-ghost" href="/owner/earnings">
+            View Earnings
+          </Link>
+          <Link className="btn-primary" href="/owner/list">
+            Add Listing
+          </Link>
+        </div>
       </section>
 
       {error && <p className="mt-5 rounded-lg bg-[#fff0ec] p-3 text-sm font-bold text-[#a93c22]">{error}</p>}

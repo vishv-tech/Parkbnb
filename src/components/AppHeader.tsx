@@ -10,10 +10,46 @@ type AuthState = {
   admin: { email: string } | null;
 };
 
+const publicLinks = [
+  { href: "/", label: "Home" },
+  { href: "/about", label: "About Us" },
+  { href: "/how-it-works", label: "How It Works" },
+  { href: "/privacy-policy", label: "Privacy Policy" },
+  { href: "/payment-policy", label: "Payment Policy" },
+  { href: "/contact", label: "Contact / Socials" },
+];
+
+const ownerLinks = [
+  { href: "/owner/dashboard", label: "Dashboard" },
+  { href: "/owner/list", label: "List Spot" },
+  { href: "/owner/earnings", label: "Earnings" },
+];
+
+const seekerLinks = [
+  { href: "/seeker/results", label: "Find Parking" },
+  { href: "/my-bookings", label: "My Bookings" },
+];
+
+const adminLinks = [
+  { href: "/admin", label: "Admin Dashboard" },
+  { href: "/admin/users", label: "All Users" },
+  { href: "/admin/earnings", label: "Owner Monthly Earnings" },
+  { href: "/admin/listings", label: "All Parking Listings" },
+  { href: "/admin/bookings", label: "All Bookings" },
+  { href: "/admin/issue-reports", label: "Issue Reports" },
+];
+
+const navLinkClass = "rounded-lg px-3 py-2 text-[#40514b] hover:bg-[#f6f7f9]";
+
 export function AppHeader() {
   const pathname = usePathname();
   const router = useRouter();
   const [auth, setAuth] = useState<AuthState>({ user: null, admin: null });
+  const [authReady, setAuthReady] = useState(false);
+  const showAdminNavigation = Boolean(auth.admin);
+  const showOwnerNavigation = Boolean(!auth.admin && auth.user?.userType === "OWNER");
+  const showSeekerNavigation = Boolean(!auth.admin && auth.user?.userType === "SEEKER");
+  const showPublicNavigation = Boolean(authReady && !auth.user && !auth.admin);
 
   useEffect(() => {
     let active = true;
@@ -23,9 +59,15 @@ export function AppHeader() {
       .then((data: AuthState) => {
         if (active) {
           setAuth({ user: data.user, admin: data.admin });
+          setAuthReady(true);
         }
       })
-      .catch(() => undefined);
+      .catch(() => {
+        if (active) {
+          setAuth({ user: null, admin: null });
+          setAuthReady(true);
+        }
+      });
 
     return () => {
       active = false;
@@ -41,7 +83,7 @@ export function AppHeader() {
 
   return (
     <header className="sticky top-0 z-40 border-b border-[#dbe3df] bg-white/92 backdrop-blur">
-      <div className="app-shell flex min-h-16 items-center justify-between gap-3 py-3">
+      <div className="app-shell flex min-h-16 flex-col items-start justify-between gap-3 py-3 sm:flex-row sm:items-center">
         <Link href="/" className="flex items-center gap-2 font-black text-[#11312c]">
           <span className="grid h-9 w-9 place-items-center rounded-lg bg-[#11312c] text-white">
             P
@@ -49,40 +91,53 @@ export function AppHeader() {
           <span>Park2bnb</span>
         </Link>
 
-        <nav className="flex items-center gap-2 text-sm font-bold">
-          {auth.user?.userType === "OWNER" && (
+        <nav className="flex w-full flex-wrap items-center gap-2 text-sm font-bold sm:w-auto sm:justify-end">
+          {showPublicNavigation && (
             <>
-              <Link className="hidden rounded-lg px-3 py-2 text-[#40514b] sm:inline-flex" href="/owner/dashboard">
-                Dashboard
+              {publicLinks.map((link) => (
+                <Link className={navLinkClass} href={link.href} key={link.href}>
+                  {link.label}
+                </Link>
+              ))}
+              <Link className="btn-ghost min-h-10 px-3 py-2" href="/login">
+                Login
               </Link>
-              <Link className="hidden rounded-lg px-3 py-2 text-[#40514b] sm:inline-flex" href="/owner/list">
-                List Spot
+              <Link className="btn-primary min-h-10 px-3 py-2" href="/signup">
+                Sign Up
               </Link>
             </>
           )}
-          {auth.user?.userType === "SEEKER" && (
+          {showAdminNavigation && (
             <>
-              <Link className="hidden rounded-lg px-3 py-2 text-[#40514b] sm:inline-flex" href="/seeker/results">
-                Find
-              </Link>
-              <Link className="hidden rounded-lg px-3 py-2 text-[#40514b] sm:inline-flex" href="/my-bookings">
-                Bookings
-              </Link>
+              {adminLinks.map((link) => (
+                <Link className={navLinkClass} href={link.href} key={link.href}>
+                  {link.label}
+                </Link>
+              ))}
             </>
           )}
-          {auth.admin && (
-            <Link className="hidden rounded-lg px-3 py-2 text-[#40514b] sm:inline-flex" href="/admin">
-              Admin
-            </Link>
+          {showOwnerNavigation && (
+            <>
+              {ownerLinks.map((link) => (
+                <Link className={navLinkClass} href={link.href} key={link.href}>
+                  {link.label}
+                </Link>
+              ))}
+            </>
           )}
-          {auth.user || auth.admin ? (
+          {showSeekerNavigation && (
+            <>
+              {seekerLinks.map((link) => (
+                <Link className={navLinkClass} href={link.href} key={link.href}>
+                  {link.label}
+                </Link>
+              ))}
+            </>
+          )}
+          {(auth.user || auth.admin) && (
             <button className="btn-ghost min-h-10 px-3 py-2" onClick={logout}>
               Logout
             </button>
-          ) : (
-            <Link className="btn-primary min-h-10 px-3 py-2" href="/login">
-              Login
-            </Link>
           )}
         </nav>
       </div>

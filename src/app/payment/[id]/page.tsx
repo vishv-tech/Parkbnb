@@ -5,6 +5,7 @@ import { useEffect, useMemo, useState } from "react";
 import { ProtectedPage } from "@/components/ProtectedPage";
 import { StatusBadge } from "@/components/StatusBadge";
 import { money } from "@/lib/format";
+import { calculatePlatformFeeAmount, calculateTotalAmount } from "@/lib/platformFee";
 import type { BookingWithListing, PublicListing } from "@/lib/types";
 
 type RazorpayOrder = {
@@ -47,9 +48,15 @@ function PaymentContent() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
   const [paying, setPaying] = useState(false);
-  const platformFee = 0;
 
-  const total = useMemo(() => (booking ? booking.selectedPrice + platformFee : 0), [booking]);
+  const platformFee = useMemo(
+    () => (booking ? booking.platformFeeAmount ?? calculatePlatformFeeAmount(booking.selectedPrice) : 0),
+    [booking],
+  );
+  const total = useMemo(
+    () => (booking ? booking.totalAmount ?? calculateTotalAmount(booking.selectedPrice) : 0),
+    [booking],
+  );
 
   useEffect(() => {
     fetch(`/api/bookings/${params.id}`, { cache: "no-store" })
@@ -210,7 +217,7 @@ function PaymentContent() {
             <span>{money(booking.selectedPrice)}</span>
           </div>
           <div className="flex items-center justify-between">
-            <span>Platform fee</span>
+            <span>Platform fee 5%</span>
             <span>{money(platformFee)}</span>
           </div>
           <div className="flex items-center justify-between border-t border-[#edf1ef] pt-4 text-lg font-black text-[#14231f]">
